@@ -13,6 +13,11 @@ data:
 data-check:
 	python -m data.pipeline.cli version
 
+tokenizer:
+	python -m ml.tokenizer.cli experiments \
+		--corpus data/processed/$$(cat data/processed/CURRENT 2>/dev/null)/train \
+		--out ml/tokenizer/artifacts
+
 test:
 	python -m pytest tests
 

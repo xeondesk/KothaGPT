@@ -14,9 +14,9 @@
 - [x] dataset versioning
 
 ## Phase 2 — Language
-- [ ] tokenizer
-- [ ] Bangla benchmarks
-- [ ] vocabulary optimization
+- [x] tokenizer
+- [x] Bangla benchmarks
+- [x] vocabulary optimization
 
 ## Phase 3 — Model
 - [ ] architecture

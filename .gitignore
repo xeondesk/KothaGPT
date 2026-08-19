@@ -1,3 +1,10 @@
 .venv
 .DS_Store
 .env
+__pycache__/
+*.pyc
+
+# generated dataset / tokenizer artifacts
+data/processed/*
+!data/processed/.gitkeep
+ml/tokenizer/artifacts/

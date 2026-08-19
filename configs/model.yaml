@@ -1,0 +1,4 @@
+name: own-ai
+language: [bn, en]
+context_length: 4096
+architecture: decoder_transformer

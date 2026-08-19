@@ -1,0 +1,10 @@
+name: bangla-core
+tasks:
+  - bangla_qa
+  - bangla_generation
+  - bangla_translation
+  - bangla_summarization
+metrics:
+  - exact_match
+  - rouge
+  - human_preference

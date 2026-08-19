@@ -7,6 +7,12 @@ bootstrap:
 dev:
 	uvicorn services.api.app:app --reload --host 0.0.0.0 --port 8000
 
+data:
+	python -m data.pipeline.cli run
+
+data-check:
+	python -m data.pipeline.cli version
+
 test:
 	python -m pytest tests
 

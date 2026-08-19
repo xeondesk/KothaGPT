@@ -7,11 +7,11 @@
 - [ ] configuration system
 
 ## Phase 1 — Data
-- [ ] corpus ingestion
-- [ ] normalization
-- [ ] filtering
-- [ ] deduplication
-- [ ] dataset versioning
+- [x] corpus ingestion
+- [x] normalization
+- [x] filtering
+- [x] deduplication
+- [x] dataset versioning
 
 ## Phase 2 — Language
 - [ ] tokenizer

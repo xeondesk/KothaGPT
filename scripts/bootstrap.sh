@@ -4,4 +4,4 @@ python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
 pip install -r services/api/requirements.txt
-echo "Own AI bootstrap complete."
+echo "Kotha GPT bootstrap complete."

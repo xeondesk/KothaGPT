@@ -1,1 +1,1 @@
-# Own AI Python SDK\n\nPlanned: chat, streaming, embeddings, tools, agents.\n
+# Kotha GPT Python SDK\n\nPlanned: chat, streaming, embeddings, tools, agents.\n

@@ -1,1 +1,1 @@
-# Own AI TypeScript SDK\n\nPlanned: browser/server client, streaming, tools, agents.\n
+# Kotha GPT TypeScript SDK\n\nPlanned: browser/server client, streaming, tools, agents.\n

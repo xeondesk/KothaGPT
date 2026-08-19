@@ -1,5 +1,5 @@
 {
-  "name": "@own-ai/web",
+  "name": "@kothagpt/web",
   "private": true,
   "scripts": {
     "dev": "next dev",

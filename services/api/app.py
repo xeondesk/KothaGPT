@@ -1,15 +1,15 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 
-app = FastAPI(title="Own AI API", version="0.1.0")
+app = FastAPI(title="Kotha GPT API", version="0.1.0")
 
 class ChatRequest(BaseModel):
     message: str
-    model: str = "own-ai"
+    model: str = "kothagpt"
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "service": "own-ai-api"}
+    return {"status": "ok", "service": "kothagpt-api"}
 
 @app.post("/v1/chat")
 def chat(request: ChatRequest):

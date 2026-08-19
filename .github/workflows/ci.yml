@@ -33,6 +33,6 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install dependencies
-        run: pip install -r services/api/requirements.txt
+        run: pip install -r services/api/requirements.txt -e packages/python-sdk packages/cli
       - name: Run tests
         run: make test

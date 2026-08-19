@@ -15,7 +15,7 @@ import sys
 from pathlib import Path
 
 from ml.tokenizer import load_tokenizer, train_bpe, train_unigram
-from ml.tokenizer.benchmark import SAMPLE_TEXTS, run_benchmark
+from ml.tokenizer.benchmark import GATE_THRESHOLDS, SAMPLE_TEXTS, check_benchmark, run_benchmark
 from ml.tokenizer.corpus import load_corpus
 from ml.tokenizer.transliterate import latin_to_bangla
 
@@ -65,6 +65,18 @@ def _build_parser() -> argparse.ArgumentParser:
     bench_p = sub.add_parser("benchmark", help="Benchmark a saved tokenizer.")
     bench_p.add_argument("--tokenizer", required=True)
     bench_p.add_argument("--file", default=None)
+    bench_p.add_argument("--out", default=None, help="write benchmark.json artifact here")
+    bench_p.add_argument(
+        "--gate",
+        action="store_true",
+        help="fail (exit 1) when the WS-7 threshold gate is violated",
+    )
+    bench_p.add_argument(
+        "--max-tokens-per-char",
+        type=float,
+        default=None,
+        help="override the max average tokens/char gate threshold",
+    )
 
     return parser
 
@@ -137,8 +149,13 @@ def _cmd_experiments(args: argparse.Namespace) -> int:
                     "target_vocab": vocab_size,
                     "actual_vocab": len(tokenizer.vocab),
                     "avg_tokens_per_char": bench["avg_tokens_per_char"],
+                    "avg_unk_rate": bench["avg_unk_rate"],
+                    "min_decode_fidelity": bench["min_decode_fidelity"],
+                    "avg_compression_vs_byte": bench["avg_compression_vs_byte"],
+                    "avg_compression_vs_char": bench["avg_compression_vs_char"],
                     "per_set": {k: v["tokens_per_char"] for k, v in bench["per_set"].items()},
-                    "unk": {k: v["unk"] for k, v in bench["per_set"].items()},
+                    "unk_rate": {k: v["unk_rate"] for k, v in bench["per_set"].items()},
+                    "fidelity": {k: v["decode_fidelity"] for k, v in bench["per_set"].items()},
                     "dir": str(exp_dir),
                 }
             )
@@ -163,18 +180,24 @@ def _cmd_experiments(args: argparse.Namespace) -> int:
 def _write_report(out_root: Path, rows: list[dict], best: dict) -> None:
     lines = ["# Tokenizer Experiment Report", ""]
     lines.append("Lower tokens/char is better (fewer tokens for the same text).")
+    lines.append(
+        "unk_rate is unknown-token rate (target < 0.5% on dev sets); "
+        "fidelity is decode round-trip accuracy (target 100%)."
+    )
     lines.append("")
     lines.append("## Overall (average across test sets)")
-    lines.append("| algorithm | target vocab | actual vocab | tokens/char | best |")
-    lines.append("| --- | --- | --- | --- | --- |")
+    lines.append("| algorithm | target vocab | actual vocab | tokens/char | unk rate | fidelity | best |")
+    lines.append("| --- | --- | --- | --- | --- | --- | --- |")
     for row in rows:
         marker = " *" if row is best else ""
         lines.append(
             f"| {row['algorithm']} | {row['target_vocab']:,} | {row['actual_vocab']:,} "
-            f"| {row['avg_tokens_per_char']:.4f} | {marker} |"
+            f"| {row['avg_tokens_per_char']:.4f} | {row['avg_unk_rate']:.4f} "
+            f"| {row['min_decode_fidelity']:.0%} | {marker} |"
         )
     lines.append("")
-    names = ["bangla", "mixed", "punctuation", "emoji", "code"]
+    names = ["bangla", "mixed", "punctuation", "translit", "digits", "names", "emoji", "code", "social"]
+    names = [n for n in names if n in rows[0]["per_set"]]
     lines.append("## Per test set (tokens/char)")
     lines.append("| algorithm | vocab | " + " | ".join(names) + " |")
     lines.append("| --- | --- | " + " | ".join("---" for _ in names) + " |")
@@ -185,11 +208,18 @@ def _write_report(out_root: Path, rows: list[dict], best: dict) -> None:
     lines.append("## Best (frozen)")
     lines.append(f"- `{best['algorithm']}-{best['target_vocab']}` → `{out_root / 'best'}`")
     lines.append("")
-    lines.append("## Unk coverage (total unknown tokens per set)")
+    lines.append("## Unk rate (unknown tokens per set)")
     lines.append("| algorithm | vocab | " + " | ".join(names) + " |")
     lines.append("| --- | --- | " + " | ".join("---" for _ in names) + " |")
     for row in rows:
-        cells = " | ".join(str(row["unk"].get(n, "-")) for n in names)
+        cells = " | ".join(f"{row['unk_rate'].get(n, 1.0):.4f}" for n in names)
+        lines.append(f"| {row['algorithm']} | {row['target_vocab']:,} | {cells} |")
+    lines.append("")
+    lines.append("## Decode fidelity (round-trip == original)")
+    lines.append("| algorithm | vocab | " + " | ".join(names) + " |")
+    lines.append("| --- | --- | " + " | ".join("---" for _ in names) + " |")
+    for row in rows:
+        cells = " | ".join(f"{row['fidelity'].get(n, 0.0):.0%}" for n in names)
         lines.append(f"| {row['algorithm']} | {row['target_vocab']:,} | {cells} |")
     lines.append("")
     (out_root / "REPORT.md").write_text("\n".join(lines), encoding="utf-8")
@@ -233,7 +263,31 @@ def _cmd_benchmark(args: argparse.Namespace) -> int:
         text = Path(args.file).read_text(encoding="utf-8")
         texts = {"file": text}
     result = run_benchmark(tokenizer, texts)
+    if args.out is not None:
+        out_path = Path(args.out)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "tokenizer": str(args.tokenizer),
+            "vocab_size": len(tokenizer.vocab),
+            "thresholds": dict(GATE_THRESHOLDS),
+            "result": result,
+        }
+        out_path.write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+        )
+        print(f"benchmark artifact written: {out_path}")
     print(json.dumps(result, ensure_ascii=False, indent=2))
+    if args.gate:
+        thresholds = dict(GATE_THRESHOLDS)
+        if args.max_tokens_per_char is not None:
+            thresholds["max_avg_tokens_per_char"] = args.max_tokens_per_char
+        failures = check_benchmark(result, thresholds)
+        if failures:
+            print("GATE FAILED:")
+            for msg in failures:
+                print(f"  - {msg}")
+            return 1
+        print("GATE PASSED")
     return 0
 
 

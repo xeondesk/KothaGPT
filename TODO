@@ -17,10 +17,31 @@ Top-level milestones (priority order)
 
 Quick wins / Immediate next actions (first 2 weeks)
 
-- A1 — Audit and canonicalize datasets: produce a small validated Bangla corpus (10–50M tokens). Owner: @you. ETA: 1 week. Metric: token count, dedup rate.
+- A1 — Audit and canonicalize datasets: produce a small validated Bangla corpus (10–50M tokens). Owner: @you. ETA: 1 week. Metric: token count, dedup rate. `data/` — Phase 1A pipeline live.
 - A2 — Finalize tokenizer & vocab: pick/configure a unigram/BPE tokenizer and publish vocab. Owner: `ml/tokenizer`. ETA: 3 days. Metric: token coverage, avg tokens per word.
 - A3 — Stand up inference prototype: load a small model (1B) and expose a simple FastAPI endpoint in `services/api`. Owner: `services/api` team. ETA: 1 week. Metric: p95 latency < 500ms (local GPU), response correctness.
 - A4 — Add CI task: dataset checks + tokenizer build + unit tests. Owner: `infra`. ETA: 3 days.
+
+Bangla Language Foundation (plan: `docs/bangla-foundation-plan.md`)
+
+Wave A — language preprocessing (DONE, commit f469c87)
+
+- [x] WS-2 Unicode normalization — yaphala fix, NFKC-latin-only, digit policy (`data/pipeline/normalize.py`)
+- [x] WS-3 Punctuation normalization — danda/quotes/dashes/digits (`data/pipeline/punctuation.py`)
+- [x] WS-4 Bangla-English mixed text — script detection + spacing (`data/pipeline/mixed.py`)
+- [x] WS-5 Transliteration — bn<->la transliterator + golden fixture + CLI `--transliterate` (`ml/tokenizer/transliterate.py`)
+- [x] Docs: `docs/bangla-normalization.md`, `docs/bangla-transliteration.md`
+
+Wave B — tokenizer freeze (pending)
+
+- [ ] WS-1 Tokenizer create/select — experiments matrix + baselines + selection report (`ml/tokenizer/artifacts/`)
+- [ ] WS-6 Vocabulary — freeze `vocab.json` + coverage report + versioning
+- [ ] WS-7 Token efficiency — more benchmark sets + unk/decode-fidelity metrics + CI gate
+
+Wave C — evaluation (pending)
+
+- [ ] WS-8 Benchmark dataset — `data/benchmarks/bangla/v1/` (QA/translation/summarization JSONL)
+- [ ] WS-9 Language evaluation — `evals/run.py` runner + metrics + report
 
 Roadmap structure (for each milestone)
 

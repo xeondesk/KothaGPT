@@ -68,6 +68,14 @@ tokenizer-check:
 		exit 1; \
 	fi
 
+# WS-7 efficiency gate: fails the build when the frozen tokenizer violates the
+# threshold set (unk < 0.5% on dev, decode fidelity 100%, tokens/char budget).
+tokenizer-bench:
+	python -m ml.tokenizer.cli benchmark \
+		--tokenizer ml/tokenizer/artifacts/best/tokenizer.json \
+		--out ml/tokenizer/artifacts/benchmark.json \
+		--gate
+
 serve-proto:
 	uvicorn services.api.app:app --host 0.0.0.0 --port 8000
 

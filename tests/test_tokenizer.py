@@ -11,7 +11,12 @@ from ml.tokenizer import (
     train_bpe,
     train_unigram,
 )
-from ml.tokenizer.benchmark import SAMPLE_TEXTS, run_benchmark
+from ml.tokenizer.benchmark import (
+    GATED_SETS,
+    SAMPLE_TEXTS,
+    check_benchmark,
+    run_benchmark,
+)
 from ml.tokenizer.corpus import load_corpus
 
 _BANGLA_WORDS = [
@@ -222,7 +227,50 @@ def test_benchmark_shape(corpus):
         "punctuation",
         "emoji",
         "code",
+        "translit",
+        "digits",
+        "names",
+        "social",
     }
+    assert result["dev_max_unk_rate"] >= 0.0
+    assert result["dev_min_decode_fidelity"] >= 0.0
+
+
+def test_benchmark_gate_passes_on_bangla_dev(corpus):
+    tokenizer = train_unigram(corpus, vocab_size=300, min_frequency=2, iterations=2)
+    result = run_benchmark(tokenizer)
+    failures = check_benchmark(result)
+    assert failures == [], failures
+
+
+def test_benchmark_gate_detects_unk_regression(corpus):
+    tokenizer = train_unigram(corpus, vocab_size=300, min_frequency=2, iterations=2)
+    result = run_benchmark(tokenizer)
+    # An impossible unk threshold must be reported as a violation.
+    failures = check_benchmark(result, {"max_dev_unk_rate": -1.0})
+    assert any("dev_max_unk_rate" in f for f in failures)
+
+
+def test_benchmark_decodes_dev_sets_losslessly(corpus):
+    tokenizer = train_bpe(corpus, vocab_size=400, min_frequency=2)
+    for name in ("bangla", "mixed", "punctuation", "digits", "names"):
+        result = run_benchmark(tokenizer, {name: SAMPLE_TEXTS[name]})
+        assert result["per_set"][name]["decode_fidelity"] == 1.0
+
+
+def test_translit_set_is_preprocessed(corpus):
+    tokenizer = train_bpe(corpus, vocab_size=400, min_frequency=2)
+    stats = run_benchmark(tokenizer)["per_set"]["translit"]
+    # The romanized sample must be transliterated to Bangla before tokenizing,
+    # so it must contain zero unknowns and round-trip cleanly.
+    assert stats["unk_rate"] == 0.0
+    assert stats["decode_fidelity"] == 1.0
+
+
+def test_gated_sets_exclude_emoji_stress(corpus):
+    assert "emoji" not in GATED_SETS
+    assert "social" not in GATED_SETS
+    assert "bangla" in GATED_SETS
 
 
 def test_unigram_improves_over_initial_vocab(corpus):

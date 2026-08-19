@@ -1,0 +1,27 @@
+{
+  "latin_to_bangla": {
+    "ami": "আমি",
+    "kotha": "কোথা",
+    "bangla": "বাংলা",
+    "bangladesh": "বাংলাদেশ",
+    "dhan": "ধান",
+    "valo": "ভালো",
+    "bhalo": "ভালো",
+    "mama": "মামা",
+    "ek": "এক",
+    "khub": "খুব",
+    "mukh": "মুখ",
+    "chotoder": "চোতোদের"
+  },
+  "bangla_to_latin": {
+    "বাংলা": "bangla",
+    "কোথা": "kotha",
+    "আমি": "ami",
+    "ধান": "dhan",
+    "ভালো": "bhalo",
+    "খুব": "khub",
+    "এক": "ek",
+    "মামা": "mama",
+    "কুমারী": "kumari"
+  }
+}

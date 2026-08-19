@@ -1,15 +1,19 @@
 """Phase 1B — Bangla tokenizer (BPE and Unigram experiments)."""
 
-from .base import BaseTokenizer, SPECIAL_TOKENS, UNK, load_tokenizer
+from .base import SPECIAL_TOKENS, UNK, BaseTokenizer, load_tokenizer
 from .bpe import BpeTokenizer, train_bpe
+from .transliterate import BENGALI_CONSONANTS, bangla_to_latin, latin_to_bangla
 from .unigram import UnigramTokenizer, train_unigram
 
 __all__ = [
-    "BaseTokenizer",
-    "BpeTokenizer",
+    "BENGALI_CONSONANTS",
     "SPECIAL_TOKENS",
     "UNK",
+    "BaseTokenizer",
+    "BpeTokenizer",
     "UnigramTokenizer",
+    "bangla_to_latin",
+    "latin_to_bangla",
     "load_tokenizer",
     "train_bpe",
     "train_unigram",

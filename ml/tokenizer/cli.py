@@ -3,7 +3,7 @@
 Usage:
     python -m ml.tokenizer.cli train --corpus PATH --algorithm bpe|unigram --vocab-size N --out DIR
     python -m ml.tokenizer.cli experiments --corpus PATH [--out DIR]
-    python -m ml.tokenizer.cli encode --tokenizer DIR --text "..." | --file PATH
+    python -m ml.tokenizer.cli encode --tokenizer DIR --text "..." [--transliterate] | --file PATH
     python -m ml.tokenizer.cli benchmark --tokenizer DIR --file PATH
 """
 
@@ -17,6 +17,7 @@ from pathlib import Path
 from ml.tokenizer import load_tokenizer, train_bpe, train_unigram
 from ml.tokenizer.benchmark import SAMPLE_TEXTS, run_benchmark
 from ml.tokenizer.corpus import load_corpus
+from ml.tokenizer.transliterate import latin_to_bangla
 
 DEFAULT_VOCAB_SIZES = (16000, 32000, 50000)
 
@@ -55,6 +56,11 @@ def _build_parser() -> argparse.ArgumentParser:
     enc_p.add_argument("--text", default=None)
     enc_p.add_argument("--file", default=None)
     enc_p.add_argument("--show-tokens", action="store_true", dest="show_tokens")
+    enc_p.add_argument(
+        "--transliterate",
+        action="store_true",
+        help="treat input as romanized Bangla and convert to Bangla script first",
+    )
 
     bench_p = sub.add_parser("benchmark", help="Benchmark a saved tokenizer.")
     bench_p.add_argument("--tokenizer", required=True)
@@ -190,7 +196,7 @@ def _write_report(out_root: Path, rows: list[dict], best: dict) -> None:
 
 
 def _print_summary(rows: list[dict], best: dict) -> None:
-    print("")
+    print()
     print("Experiment summary (avg tokens/char, lower is better):")
     for row in sorted(rows, key=lambda r: r["avg_tokens_per_char"]):
         marker = " <- best" if row is best else ""
@@ -209,6 +215,8 @@ def _cmd_encode(args: argparse.Namespace) -> int:
         text = Path(args.file).read_text(encoding="utf-8")
     else:
         text = sys.stdin.read()
+    if args.transliterate:
+        text = latin_to_bangla(text)
     ids = tokenizer.encode(text)
     print(f"tokens: {len(ids)}  chars: {len(text)}  tokens/char: {len(ids) / len(text):.4f}")
     if args.show_tokens:

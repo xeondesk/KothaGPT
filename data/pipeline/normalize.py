@@ -10,8 +10,12 @@ import html
 import re
 import unicodedata
 
+from .punctuation import convert_digits, normalize_bangla_punctuation
+
 __all__ = [
     "clean_whitespace",
+    "fix_bengali_yaphala",
+    "nfkc_latin_only",
     "normalize_text",
     "strip_html",
     "strip_markup",
@@ -41,6 +45,47 @@ _ZERO_WIDTH_RE = re.compile("[\u200b\u200e\u200f\u2060\ufeff]")
 
 _NBSP_CHARS = ("\u00a0", "\u202f", "\u2007", "\u2009")
 _CONTROL_CHARS = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
+
+# Bangla consonants (ক-হ plus the extended forms রড র্ড় ঢ় য়) followed by a
+# zero-width joiner and য. Typed Bengali sometimes uses ZWJ to force the ya-phala
+# conjunct (e.g. ক‍্য = kya); the canonical NFC encoding is hasanta (U+09CD) + য.
+_ZWJ_YAPHALA_RE = re.compile("([\u0995-\u09b9\u09dc\u09dd\u09df])\u200d\u09af")
+
+
+def fix_bengali_yaphala(text: str) -> str:
+    """Normalize ZWJ-forced ya-phala sequences to hasanta + য.
+
+    Converts ``<consonant> ZWJ য`` -> ``<consonant> ্ য`` so that conjuncts
+    use the canonical hasanta form and NFC round-trips cleanly.
+    """
+    return _ZWJ_YAPHALA_RE.sub(lambda m: m.group(1) + "\u09cd\u09af", text)
+
+
+_LATIN_RUN_RE = re.compile(
+    "[\u0041-\u007a\u00c0-\u02af\u1e00-\u1eff\u0300-\u036f\ufb00-\ufb06\uff21-\uff5a]"
+)
+
+
+def nfkc_latin_only(text: str) -> str:
+    """Apply NFKC only to Latin-script runs, leaving Bangla text intact.
+
+    NFKC across the whole document would decompose Bangla conjuncts; restricting
+    it to Latin segments lets English loanwords and punctuation (e.g. fullwidth
+    forms, ligatures like ``ﬁ``) normalise without touching Bengali glyphs.
+    """
+    out: list[str] = []
+    buf: list[str] = []
+    for ch in text:
+        if _LATIN_RUN_RE.match(ch):
+            buf.append(ch)
+        else:
+            if buf:
+                out.append(unicodedata.normalize("NFKC", "".join(buf)))
+                buf = []
+            out.append(ch)
+    if buf:
+        out.append(unicodedata.normalize("NFKC", "".join(buf)))
+    return "".join(out)
 
 
 def unicode_normalize(text: str, form: str = "NFC") -> str:
@@ -98,13 +143,27 @@ def normalize_text(
     remove_html: bool = True,
     remove_markup: bool = True,
     collapse_whitespace: bool = True,
+    fix_yaphala: bool = True,
+    normalize_punctuation: bool = True,
+    digit_style: str = "keep",
 ) -> str:
-    """Run the full normalization stack on a single text."""
+    """Run the full normalization stack on a single text.
+
+    ``digit_style`` controls number style: ``"keep"`` (default), ``"bengali"``
+    or ``"ascii"``. ``normalize_punctuation`` applies the Bangla punctuation
+    rules (danda/quotes/dashes/ellipsis) from ``punctuation``.
+    """
     text = unicode_normalize(text, unicode_form)
+    if fix_yaphala:
+        text = fix_bengali_yaphala(text)
     if remove_html:
         text = strip_html(text)
     if remove_markup:
         text = strip_markup(text)
+    if normalize_punctuation:
+        text = normalize_bangla_punctuation(text)
+    if digit_style != "keep":
+        text = convert_digits(text, target=digit_style)
     if collapse_whitespace:
         text = clean_whitespace(text)
     return text.strip()

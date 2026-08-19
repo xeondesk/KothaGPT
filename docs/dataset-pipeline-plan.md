@@ -82,13 +82,19 @@ the manifest is an empty template.
 
 ## Phase B — Filtering & Quality (ফিল্টারিং ও গুণমান)
 
-### B1. Dataset deduplication (Dataset deduplication) 🔶
-**Status:** `data/pipeline/dedup.py` has exact sha256 + MinHash LSH.
-- **Do:** scale to large corpora (sharded MinHash, optional Bloom filter for
-  exact dedup), **cross-source** global dedup so one corpus doesn't leak into
-  another, and PCCC-style dedup for the code stream.
+### B1. Dataset deduplication (Dataset deduplication) ✅
+**Status:** scaled — exact sha256 + MinHash LSH, now with:
+- `BloomFilter` exact-dedup store (`--bloom-filter`, fixed memory at a
+  configurable false-positive rate) for corpus-scale exact dedup;
+- `ExactDedupState` persistent digest file (`--dedup-state PATH`) for
+  **cross-source** global dedup so one corpus never leaks duplicates into
+  another;
+- `near_duplicate_groups_sharded` disk-spilling LSH (band buckets + signatures
+  on disk, memory bounded by the largest bucket, not the corpus) — the default
+  near-dedup path in `run_pipeline`;
+- dedup counts + **dedup rate** now reported in the summary and `REPORT.md`.
 - **Success:** dedup rate < 3% reported in `report/`; cross-source duplicates
-  removed.
+  removed (verified end-to-end: shared state drops dupes across runs).
 
 ### B2. Spam filtering (Spam filtering) ✅
 **Status:** implemented — `data/pipeline/spam.py` (domain blocklist, Bangla+

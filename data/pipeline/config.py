@@ -229,6 +229,7 @@ def run_pipeline(cfg: PipelineConfig) -> dict:
         dedup_counts = dict(summary["dedup"])
         removed = dedup_counts["removed_exact"] + dedup_counts["removed_near"]
         dedup_counts["rate"] = removed / dedup_counts["input"] if dedup_counts["input"] else 0.0
+        summary["dedup"] = dedup_counts
         stats_data["dedup"] = dedup_counts
     summary["stats"] = stats_data
 

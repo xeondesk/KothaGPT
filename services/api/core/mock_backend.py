@@ -1,0 +1,308 @@
+from __future__ import annotations
+
+import asyncio
+import hashlib
+import math
+import re
+from collections.abc import AsyncIterator, Iterator
+from datetime import UTC
+from typing import Any
+
+from ..api.schemas import (
+    Agent,
+    AgentRun,
+    AgentSpec,
+    ChatCompletionChoice,
+    ChatCompletionChunk,
+    ChatCompletionRequest,
+    ChatCompletionResponse,
+    Embedding,
+    EmbeddingResponse,
+    FunctionDefinition,
+    Message,
+    Model,
+    RerankResponse,
+    RerankResult,
+    Tool,
+    ToolInvokeResponse,
+    Usage,
+)
+from .backend import Backend
+
+_EMBEDDING_DIM = 256
+
+_MODELS = [
+    Model(
+        id="kothagpt",
+        description="General-purpose Bangla chat model.",
+        context_window=8192,
+    ),
+    Model(
+        id="kothagpt-small",
+        description="Fast Bangla chat model for latency-sensitive apps.",
+        context_window=4096,
+    ),
+    Model(
+        id="kothagpt-embed",
+        description="Bangla text embedding model.",
+        context_window=2048,
+    ),
+    Model(
+        id="kothagpt-rerank",
+        description="Bangla query/document reranking model.",
+        context_window=2048,
+    ),
+]
+
+_MOCK_TOOLS = [
+    Tool(
+        function=FunctionDefinition(
+            name="calculator",
+            description="Evaluate a basic arithmetic expression.",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "expression": {"type": "string", "description": "e.g. (2 + 3) * 4"},
+                },
+                "required": ["expression"],
+            },
+        )
+    ),
+    Tool(
+        function=FunctionDefinition(
+            name="current_time",
+            description="Get the current UTC time.",
+            parameters={"type": "object", "properties": {}},
+        )
+    ),
+    Tool(
+        function=FunctionDefinition(
+            name="web_search",
+            description="Search the web (mock).",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string"},
+                    "max_results": {"type": "integer", "default": 5},
+                },
+                "required": ["query"],
+            },
+        )
+    ),
+]
+
+_TOKEN_RE = re.compile(r"[\w\u0980-\u09FF']+")
+
+
+class MockBackend(Backend):
+    """Deterministic, dependency-free backend for development and tests."""
+
+    def __init__(self) -> None:
+        self._agents: dict[str, Agent] = {}
+        self._runs: dict[str, AgentRun] = {}
+        self._tools = {t.function.name: t for t in _MOCK_TOOLS}
+
+    # ---- models ---------------------------------------------------------
+
+    def list_models(self) -> list[Model]:
+        return list(_MODELS)
+
+    # ---- chat -----------------------------------------------------------
+
+    def _build_response(self, request: ChatCompletionRequest) -> str:
+        user_parts = [m.content for m in request.messages if m.role == "user"]
+        last_user = user_parts[-1] if user_parts else ""
+        return _mock_reply(last_user)
+
+    def chat(self, request: ChatCompletionRequest) -> ChatCompletionResponse:
+        content = self._build_response(request)
+        prompt_tokens = _token_count(request.messages)
+        completion_tokens = _token_count([Message(role="assistant", content=content)])
+        usage = Usage(
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            total_tokens=prompt_tokens + completion_tokens,
+        )
+        return ChatCompletionResponse(
+            model=request.model,
+            choices=[
+                ChatCompletionChoice(
+                    message=Message(role="assistant", content=content),
+                    finish_reason="stop",
+                )
+            ],
+            usage=usage,
+        )
+
+    def chat_stream(self, request: ChatCompletionRequest) -> Iterator[ChatCompletionChunk]:
+        content = self._build_response(request)
+        # Emit one chunk per token so streaming is visibly incremental.
+        tokens = _split_tokens(content)
+        if not tokens:
+            tokens = [content]
+        for i, tok in enumerate(tokens):
+            yield ChatCompletionChunk(
+                model=request.model,
+                choices=[{"index": 0, "delta": {"content": tok}, "finish_reason": None}],
+            )
+            last = i == len(tokens) - 1
+            if last:
+                yield ChatCompletionChunk(
+                    model=request.model,
+                    choices=[{"index": 0, "delta": {}, "finish_reason": "stop"}],
+                )
+
+    # ---- embeddings -----------------------------------------------------
+
+    def embed(self, model: str, inputs: list[str]) -> EmbeddingResponse:
+        data = [
+            Embedding(index=i, embedding=_embed(text))
+            for i, text in enumerate(inputs)
+        ]
+        total = sum(_token_count([Message(role="user", content=t)]) for t in inputs)
+        return EmbeddingResponse(model=model, data=data, usage=Usage(prompt_tokens=total, total_tokens=total))
+
+    # ---- rerank ---------------------------------------------------------
+
+    def rerank(self, model: str, query: str, documents: list[str], top_n: int | None) -> RerankResponse:
+        scored = [
+            RerankResult(index=i, document=doc, relevance_score=_rerank_score(query, doc))
+            for i, doc in enumerate(documents)
+        ]
+        scored.sort(key=lambda r: r.relevance_score, reverse=True)
+        if top_n is not None:
+            scored = scored[:top_n]
+        return RerankResponse(model=model, results=scored)
+
+    # ---- tools ----------------------------------------------------------
+
+    def list_tools(self) -> list[Tool]:
+        return list(self._tools.values())
+
+    def invoke_tool(self, name: str, arguments: dict[str, Any]) -> ToolInvokeResponse:
+        if name == "calculator":
+            expression = str(arguments.get("expression", ""))
+            return ToolInvokeResponse(name=name, result={"expression": expression, "value": _safe_eval(expression)})
+        if name == "current_time":
+            return ToolInvokeResponse(name=name, result={"utc": _utc_now()})
+        if name == "web_search":
+            return ToolInvokeResponse(
+                name=name,
+                result={
+                    "query": arguments.get("query"),
+                    "max_results": arguments.get("max_results", 5),
+                    "results": [{"title": "Mock result", "snippet": "Deterministic search stub."}],
+                },
+            )
+        raise KeyError(f"Unknown tool: {name}")
+
+    # ---- agents ---------------------------------------------------------
+
+    def create_agent(self, spec: AgentSpec) -> Agent:
+        agent = Agent(
+            name=spec.name,
+            description=spec.description,
+            instructions=spec.instructions,
+            model=spec.model,
+            tools=spec.tools,
+            temperature=spec.temperature,
+        )
+        self._agents[agent.id] = agent
+        return agent
+
+    def get_agent(self, agent_id: str) -> Agent:
+        return self._agents[agent_id]
+
+    def list_agents(self) -> list[Agent]:
+        return list(self._agents.values())
+
+    def delete_agent(self, agent_id: str) -> None:
+        del self._agents[agent_id]
+
+    def run_agent(self, agent_id: str, message: str) -> AgentRun:
+        agent = self.get_agent(agent_id)
+        system = Message(role="system", content=agent.instructions or "You are a helpful assistant.")
+        user = Message(role="user", content=message)
+        assistant = Message(role="assistant", content=_mock_reply(message))
+        run = AgentRun(
+            agent_id=agent_id,
+            status="completed",
+            messages=[system, user, assistant],
+            output=assistant.content,
+        )
+        self._runs[run.id] = run
+        return run
+
+    def get_run(self, run_id: str) -> AgentRun:
+        return self._runs[run_id]
+
+    async def run_agent_stream(self, agent_id: str, message: str) -> AsyncIterator[dict[str, Any]]:
+        agent = self.get_agent(agent_id)
+        output = _mock_reply(message)
+        yield {
+            "event": "run.created",
+            "run": {"id": None, "agent_id": agent.id, "status": "running"},
+        }
+        for tok in _split_tokens(output):
+            await asyncio.sleep(0.02)
+            yield {"event": "run.delta", "delta": tok}
+        yield {"event": "run.completed", "output": output}
+
+
+def _utc_now() -> str:
+    from datetime import datetime
+
+    return datetime.now(UTC).isoformat()
+
+
+def _safe_eval(expression: str) -> float | str:
+    expr = expression.replace("^", "**")
+    try:
+        return eval(expr, {"__builtins__": {}}, {})
+    except Exception as exc:  # noqa: BLE001
+        return f"error: {exc}"
+
+
+def _token_count(messages: list[Message]) -> int:
+    return sum(max(1, len(_split_tokens(m.content))) for m in messages)
+
+
+def _split_tokens(text: str) -> list[str]:
+    # Cheap whitespace/word split; not the real tokenizer, just for mock streams.
+    return [t for t in re.split(r"(\s+)", text) if t]
+
+
+def _mock_reply(user_message: str) -> str:
+    base = "এটি একটি মক প্রতিক্রিয়া।"
+    if user_message.strip():
+        base += f' আপনার বার্তা: "{user_message[:80]}"'
+    base += " প্রোডাকশন ব্যাকএন্ড সংযুক্ত হলে এখানে মডেল আউটপুট আসবে।"
+    return base
+
+
+def _embed(text: str, dim: int = _EMBEDDING_DIM) -> list[float]:
+    vec = []
+    for i in range(dim):
+        digest = hashlib.sha256(f"{i}:{text}".encode()).digest()
+        val = int.from_bytes(digest[:8], "big") / (2**64) * 2 - 1
+        vec.append(val)
+    norm = math.sqrt(sum(v * v for v in vec)) or 1.0
+    return [round(v / norm, 6) for v in vec]
+
+
+def _rerank_score(query: str, doc: str) -> float:
+    q_tokens = set(_TOKEN_RE.findall(query.lower()))
+    d_tokens = set(_TOKEN_RE.findall(doc.lower()))
+    if not q_tokens or not d_tokens:
+        return 0.0
+    overlap = len(q_tokens & d_tokens) / math.sqrt(len(q_tokens) * len(d_tokens))
+    ngram_bonus = 0.0
+    for n in (2, 3):
+        q_ngrams = {doc[i : i + n] for i in range(len(query) - n + 1)}
+        d_ngrams = {doc[i : i + n] for i in range(len(doc) - n + 1)}
+        if q_ngrams:
+            ngram_bonus += len(q_ngrams & d_ngrams) / len(q_ngrams)
+    return round(min(1.0, overlap + 0.1 * ngram_bonus), 4)
+
+
+__all__ = ["Backend", "MockBackend"]

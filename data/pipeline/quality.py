@@ -10,11 +10,13 @@ from __future__ import annotations
 import re
 
 __all__ = [
+    "PII_MASK",
     "bengali_ratio",
     "contains_pii",
     "detect_language",
     "length_filter",
     "quality_filter",
+    "redact_pii",
 ]
 
 _BENGALI_START = 0x0980
@@ -105,8 +107,18 @@ _IPV6_RE = re.compile(r"\b(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}\b")
 _CARD_RE = re.compile(r"\b(?:\d[ -]?){13,19}\b")
 # Bangladeshi national ID: 10 or 17 digits.
 _NID_RE = re.compile(r"(?<!\d)(?:\d{17}|\d{10})(?!\d)")
+# Passport (e.g. MRP "A0123456"): 1-2 letters followed by 6-8 digits.
+_PASSPORT_RE = re.compile(r"\b[A-Z]{1,2}\d{6,8}\b")
+# Street addresses with a number prefix (English + Bangla street markers).
+_ADDRESS_EN_RE = re.compile(
+    r"\b\d{1,5}\s+(road|street|st\.?|avenue|ave\.?|lane|lane|bd|society|sector)\b",
+    re.IGNORECASE,
+)
+_ADDRESS_BN_RE = re.compile(
+    r"(?:হাউস|বাসা|বাড়ি|রোড|সড়ক|গলি|লেন)\s*[০-৯0-9][০-৯0-9\-/]*"
+)
 
-PII_TYPES = ("email", "url", "phone", "ip", "credit_card", "nid")
+PII_TYPES = ("email", "url", "phone", "ip", "credit_card", "nid", "passport", "address")
 
 _PII_RULES = (
     ("email", _EMAIL_RE),
@@ -116,6 +128,9 @@ _PII_RULES = (
     ("ip", _IPV6_RE),
     ("credit_card", _CARD_RE),
     ("nid", _NID_RE),
+    ("passport", _PASSPORT_RE),
+    ("address", _ADDRESS_EN_RE),
+    ("address", _ADDRESS_BN_RE),
 )
 
 
@@ -183,6 +198,28 @@ def contains_pii(text: str) -> list[str]:
         if pattern.search(text) and label not in found:
             found.append(label)
     return found
+
+
+PII_MASK = "[PII]"
+
+
+def redact_pii(text: str) -> tuple[str, dict[str, int]]:
+    """Replace every PII span with :data:`PII_MASK`; ``(redacted, counts)``.
+
+    ``counts`` maps PII type -> number of masked spans. The caller can then
+    keep the redacted document instead of dropping it.
+    """
+    redacted = text
+    counts: dict[str, int] = {}
+    for label, pattern in _PII_RULES:
+        matches = list(pattern.finditer(redacted))
+        if not matches:
+            continue
+        counts[label] = len(matches)
+        for match in reversed(matches):
+            start, end = match.span()
+            redacted = redacted[:start] + PII_MASK + redacted[end:]
+    return redacted, counts
 
 
 def length_filter(

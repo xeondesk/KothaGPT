@@ -1,0 +1,38 @@
+
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
+
+from ...core import backend_factory
+from ..schemas import Tool, ToolInvokeRequest, ToolInvokeResponse
+
+
+class ToolList(BaseModel):
+    object: str = "list"
+    data: list[Tool]
+
+
+router = APIRouter(prefix="/v1/tools", tags=["tools"])
+
+
+@router.get("", response_model=ToolList)
+def list_tools() -> ToolList:
+    backend = backend_factory.create()
+    return ToolList(data=backend.list_tools())
+
+
+@router.get("/{name}", response_model=Tool)
+def get_tool(name: str) -> Tool:
+    backend = backend_factory.create()
+    for tool in backend.list_tools():
+        if tool.function.name == name:
+            return tool
+    raise HTTPException(status_code=404, detail=f"Unknown tool: {name}")
+
+
+@router.post("/{name}/invoke", response_model=ToolInvokeResponse)
+def invoke_tool(name: str, request: ToolInvokeRequest) -> ToolInvokeResponse:
+    backend = backend_factory.create()
+    try:
+        return backend.invoke_tool(name, request.arguments)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc

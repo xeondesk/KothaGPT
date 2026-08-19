@@ -18,7 +18,7 @@ dataset → tokenizer → pretraining → instruction tuning → evaluation → 
 ## Repository layout
 
 - `apps/` user-facing applications
-- `services/` backend services
+- `services/` backend services (the HTTP API lives in `services/api`)
 - `packages/` shared SDKs and libraries
 - `ml/` model/training stack
 - `data/` dataset pipeline
@@ -28,12 +28,37 @@ dataset → tokenizer → pretraining → instruction tuning → evaluation → 
 - `configs/` shared configuration
 - `scripts/` developer automation
 
+## Developer SDK
+
+The platform exposes a REST + SSE + WebSocket API (`services/api`, `/v1/*`) with
+first-party SDKs:
+
+| SDK           | Location                  | Notes                                   |
+| ------------- | ------------------------- | --------------------------------------- |
+| Python        | `packages/python-sdk`     | `pip install kothagpt`                  |
+| TypeScript    | `packages/typescript-sdk` | `@kothagpt/typescript-sdk`              |
+| Go            | `packages/go-sdk`         | `kothagpt.dev/sdk/kothagpt`             |
+| Rust          | `packages/rust-sdk`       | `kothagpt` crate                        |
+| CLI           | `packages/cli`            | `kothagpt` executable                   |
+
+Chat, streaming, tools, agents, embeddings, reranking, and model listing are
+supported across every SDK. See `docs/sdk.md` for the full API reference and
+`examples/` for runnable snippets.
+
 ## Quick start
 
 ```bash
 cp .env.example .env
 make bootstrap
 make test
+```
+
+Run the API (mock backend) and try the CLI:
+
+```bash
+make serve-proto
+kothagpt models
+kothagpt chat --stream "বাংলায় হ্যালো"
 ```
 
 Training is intentionally disabled by default. Configure a dataset and GPU environment before running training commands.

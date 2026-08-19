@@ -48,6 +48,65 @@ def test_pii_detection():
     assert quality.contains_pii("বাংলা ভাষার কথা") == []
 
 
+def test_pii_detection_extended_patterns():
+    assert "passport" in quality.contains_pii("My passport is A0123456")
+    assert "passport" in quality.contains_pii("Passport no. BG9876543")
+    assert "address" in quality.contains_pii("Meet me at 12 Road, Dhanmondi")
+    assert "address" in quality.contains_pii("বাসা ৪২, রোড ৭, ঢাকা")
+    assert quality.contains_pii("বাংলা ভাষা একটি সমৃদ্ধ ভাষা") == []
+
+
+def test_redact_pii_masks_and_counts():
+    text = "email me@x.com or call 01712345678 at https://example.com"
+    redacted, counts = quality.redact_pii(text)
+    assert "me@x.com" not in redacted
+    assert "01712345678" not in redacted
+    assert "https://example.com" not in redacted
+    assert redacted.count(quality.PII_MASK) == 3
+    assert counts["email"] == 1
+    assert counts["phone"] == 1
+    assert counts["url"] == 1
+
+
+def test_redact_pii_leaves_clean_text_untouched():
+    clean = "বাংলা ভাষা একটি সমৃদ্ধ ভাষা।"
+    redacted, counts = quality.redact_pii(clean)
+    assert redacted == clean
+    assert counts == {}
+
+
+def test_full_pipeline_pii_mask_mode_keeps_doc(tmp_path):
+    raw = tmp_path / "raw"
+    raw.mkdir()
+    (raw / "pii.txt").write_text(
+        "যোগাযোগ করুন user@example.com ঠিকানায়। " * 20, encoding="utf-8"
+    )
+    (raw / "clean.txt").write_text("বাংলা ভাষা একটি সমৃদ্ধ ভাষা। " * 20, encoding="utf-8")
+    cfg = PipelineConfig(
+        raw_dir=str(raw),
+        out_root=str(tmp_path / "out"),
+        min_chars=1,
+        max_chars=10**6,
+        min_words=1,
+        require_bangla=False,
+        pii_mode="mask",
+    )
+    summary = run_pipeline(cfg)
+    assert summary["raw"] == 2
+    assert summary["after_filter"] == 2  # masked doc kept
+    version_dir = tmp_path / "out" / summary["version_id"]
+    shards = sorted((version_dir / "train").glob("*.jsonl*")) + sorted(
+        (version_dir / "validation").glob("*.jsonl*")
+    )
+    assert shards
+    contents = "".join(
+        gzip.open(s, "rt", encoding="utf-8").read() if s.suffix == ".gz" else s.read_text(encoding="utf-8")
+        for s in shards
+    )
+    assert "user@example.com" not in contents
+    assert quality.PII_MASK in contents
+
+
 def test_length_filter():
     ok, reasons = quality.length_filter("x" * 200, min_chars=100, max_chars=1000, min_words=0)
     assert ok and not reasons
@@ -123,6 +182,15 @@ def test_iter_records_jsonl(tmp_path):
     assert len(records) == 3
     assert records[0]["text"] == "বাংলা"
     assert records[2]["source"].endswith(".html")
+
+
+def test_iter_records_skips_hidden_files(tmp_path):
+    (tmp_path / "a.txt").write_text("visible", encoding="utf-8")
+    (tmp_path / ".licenses.json").write_text('{"a.txt": "cc0"}', encoding="utf-8")
+    (tmp_path / ".DS_Store").write_text("junk", encoding="utf-8")
+    records = list(io.iter_records(tmp_path))
+    assert len(records) == 1
+    assert records[0]["source"] == "a.txt"
 
 
 def test_full_pipeline(tmp_path):

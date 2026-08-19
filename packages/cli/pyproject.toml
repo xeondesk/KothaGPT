@@ -1,0 +1,21 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "kothagpt-cli"
+version = "0.1.0"
+description = "Command-line interface for Kotha GPT"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+dependencies = ["kothagpt>=0.1.0"]
+
+[project.scripts]
+kothagpt = "kothagpt_cli.main:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["kothagpt_cli"]
+
+[tool.ruff]
+line-length = 100

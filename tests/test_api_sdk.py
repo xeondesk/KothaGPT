@@ -1,0 +1,209 @@
+import json
+
+from fastapi.testclient import TestClient
+
+from services.api.app import app
+
+client = TestClient(app)
+
+
+def test_health():
+    r = client.get("/health")
+    assert r.status_code == 200
+    assert r.json()["status"] == "ok"
+
+
+def test_list_models():
+    r = client.get("/v1/models")
+    assert r.status_code == 200
+    data = r.json()["data"]
+    ids = [m["id"] for m in data]
+    assert "kothagpt" in ids
+    assert "kothagpt-embed" in ids
+    assert "kothagpt-rerank" in ids
+
+
+def test_chat_completions():
+    r = client.post(
+        "/v1/chat/completions",
+        json={"model": "kothagpt", "messages": [{"role": "user", "content": "হ্যালো"}]},
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["object"] == "chat.completion"
+    assert body["choices"][0]["message"]["role"] == "assistant"
+    assert body["choices"][0]["message"]["content"]
+    assert body["usage"]["total_tokens"] > 0
+
+
+def test_chat_completions_unknown_model_rejected():
+    r = client.post(
+        "/v1/chat/completions",
+        json={"model": "does-not-exist", "messages": [{"role": "user", "content": "hi"}]},
+    )
+    assert r.status_code in (200, 404)
+
+
+def test_chat_legacy():
+    r = client.post("/v1/chat", json={"message": "বাংলা"})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["model"] == "kothagpt"
+    assert "বাংলা" in body["output"]
+
+
+def test_chat_streaming_sse():
+    with client.stream(
+        "POST",
+        "/v1/chat/stream",
+        json={"messages": [{"role": "user", "content": "হ্যালো"}]},
+    ) as r:
+        assert r.status_code == 200
+        assert r.headers["content-type"].startswith("text/event-stream")
+        text = r.read().decode()
+    assert "data: " in text
+    assert "data: [DONE]" in text
+    assert "chat.completion.chunk" in text
+
+
+def test_chat_completions_stream_flag():
+    r = client.post(
+        "/v1/chat/completions",
+        json={
+            "messages": [{"role": "user", "content": "হ্যালো"}],
+            "stream": True,
+        },
+    )
+    assert r.status_code == 200
+    assert r.headers["content-type"].startswith("text/event-stream")
+
+
+def test_embeddings_single():
+    r = client.post("/v1/embeddings", json={"model": "kothagpt-embed", "input": "বাংলা ভাষা"})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["object"] == "list"
+    assert len(body["data"]) == 1
+    assert body["data"][0]["index"] == 0
+    assert len(body["data"][0]["embedding"]) == 256
+
+
+def test_embeddings_batch_deterministic():
+    payload = {"model": "kothagpt-embed", "input": ["a", "b", "a"]}
+    first = client.post("/v1/embeddings", json=payload).json()["data"]
+    second = client.post("/v1/embeddings", json=payload).json()["data"]
+    assert first[0]["embedding"] == second[0]["embedding"]
+    assert first[0]["embedding"] == second[2]["embedding"]
+    assert first[0]["embedding"] != first[1]["embedding"]
+
+
+def test_rerank_orders_by_relevance():
+    r = client.post(
+        "/v1/rerank",
+        json={
+            "query": "বাংলা ভাষা শেখা",
+            "documents": [
+                "ইংরেজি শেখার উপায়",
+                "বাংলা ভাষা শেখার সেরা উপায়",
+                "রান্নার রেসিপি",
+            ],
+        },
+    )
+    assert r.status_code == 200
+    results = r.json()["results"]
+    assert len(results) == 3
+    scores = [x["relevance_score"] for x in results]
+    assert scores == sorted(scores, reverse=True)
+
+
+def test_tools_list_and_get():
+    r = client.get("/v1/tools")
+    assert r.status_code == 200
+    names = [t["function"]["name"] for t in r.json()["data"]]
+    assert "calculator" in names
+    assert "current_time" in names
+
+    r2 = client.get("/v1/tools/calculator")
+    assert r2.status_code == 200
+    assert r2.json()["function"]["name"] == "calculator"
+
+
+def test_tool_invoke_calculator():
+    r = client.post(
+        "/v1/tools/calculator/invoke",
+        json={"name": "calculator", "arguments": {"expression": "(2 + 3) * 4"}},
+    )
+    assert r.status_code == 200
+    assert r.json()["result"]["value"] == 20
+
+
+def test_tool_invoke_unknown_404():
+    r = client.post("/v1/tools/nope/invoke", json={"name": "nope", "arguments": {}})
+    assert r.status_code == 404
+
+
+def test_agents_crud_and_run():
+    created = client.post(
+        "/v1/agents",
+        json={"name": "helper", "description": "test agent", "tools": ["calculator"]},
+    )
+    assert created.status_code == 201
+    agent_id = created.json()["id"]
+
+    listed = client.get("/v1/agents").json()["data"]
+    assert any(a["id"] == agent_id for a in listed)
+
+    run = client.post(f"/v1/agents/{agent_id}/runs", json={"message": "তুমি কেমন আছ?"})
+    assert run.status_code == 201
+    run_body = run.json()
+    assert run_body["status"] == "completed"
+    assert run_body["output"]
+
+    fetched = client.get(f"/v1/agents/{agent_id}/runs/{run_body['id']}")
+    assert fetched.status_code == 200
+    assert fetched.json()["status"] == "completed"
+
+    assert client.delete(f"/v1/agents/{agent_id}").status_code == 204
+    assert client.get(f"/v1/agents/{agent_id}").status_code == 404
+
+
+def test_agent_run_stream_sse():
+    created = client.post("/v1/agents", json={"name": "streamer"}).json()
+    agent_id = created["id"]
+    with client.stream(
+        "POST",
+        f"/v1/agents/{agent_id}/runs/stream",
+        json={"message": "হ্যালো"},
+    ) as r:
+        assert r.status_code == 200
+        text = r.read().decode()
+    assert "run.created" in text
+    assert "run.completed" in text
+    assert "data: [DONE]" in text
+
+
+def test_websocket_chat():
+    with client.websocket_connect("/v1/ws") as ws:
+        ws.send_text(json.dumps({"id": "1", "type": "chat", "payload": {"messages": [{"role": "user", "content": "হ্যালো"}]}}))
+        reply = json.loads(ws.receive_text())
+        assert reply["id"] == "1"
+        assert reply["type"] == "chat"
+        assert reply["payload"]["object"] == "chat.completion"
+
+
+def test_websocket_ping_and_models():
+    with client.websocket_connect("/v1/ws") as ws:
+        ws.send_text(json.dumps({"id": "a", "type": "ping", "payload": {}}))
+        assert json.loads(ws.receive_text())["payload"] == {"pong": True}
+        ws.send_text(json.dumps({"id": "b", "type": "models.list", "payload": {}}))
+        reply = json.loads(ws.receive_text())
+        assert reply["payload"]["data"][0]["id"] == "kothagpt"
+
+
+def test_websocket_agents_create_and_run():
+    with client.websocket_connect("/v1/ws") as ws:
+        ws.send_text(json.dumps({"id": "1", "type": "agents.create", "payload": {"name": "ws-agent"}}))
+        agent = json.loads(ws.receive_text())["payload"]
+        ws.send_text(json.dumps({"id": "2", "type": "agents.run", "payload": {"agent_id": agent["id"], "message": "hi"}}))
+        run = json.loads(ws.receive_text())["payload"]
+        assert run["status"] == "completed"

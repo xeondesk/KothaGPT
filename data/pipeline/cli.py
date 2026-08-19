@@ -44,9 +44,85 @@ def _build_parser() -> argparse.ArgumentParser:
     run_p.add_argument("--no-bangla-check", action="store_true")
     run_p.add_argument("--min-bangla-ratio", type=float, default=0.5)
     run_p.add_argument("--allow-pii", action="store_true")
+    run_p.add_argument(
+        "--pii-mode",
+        choices=("drop", "mask"),
+        default="drop",
+        help="drop documents containing PII, or mask PII spans and keep them",
+    )
+    run_p.add_argument(
+        "--no-spam-check",
+        action="store_true",
+        help="skip the spam filter",
+    )
+    run_p.add_argument(
+        "--spam-threshold",
+        type=float,
+        default=0.6,
+        help="spam score threshold in [0,1] (default 0.6)",
+    )
+    run_p.add_argument(
+        "--no-toxic-check",
+        action="store_true",
+        help="skip the toxic-content filter",
+    )
+    run_p.add_argument(
+        "--toxic-classifier",
+        default=None,
+        help="optional 'module:callable' returning a toxicity score in [0,1]",
+    )
+    run_p.add_argument(
+        "--toxic-threshold",
+        type=float,
+        default=0.8,
+        help="classifier threshold in [0,1] (default 0.8)",
+    )
+    run_p.add_argument(
+        "--require-license",
+        action="store_true",
+        help="drop records without an allowed license",
+    )
+    run_p.add_argument(
+        "--license-map",
+        default=None,
+        help="JSON file mapping source path/pattern -> license (e.g. data/raw/.licenses.json)",
+    )
+    run_p.add_argument(
+        "--license-allowlist",
+        default=None,
+        help="comma-separated allowed license ids (default: standard open allowlist)",
+    )
+    run_p.add_argument(
+        "--copyrighted-titles",
+        default=None,
+        help="file of known-copyrighted titles to block (one per line)",
+    )
     run_p.add_argument("--no-exact-dedup", action="store_true")
     run_p.add_argument("--near-dedup", action="store_true", help="enable MinHash LSH dedup")
     run_p.add_argument("--dedup-threshold", type=float, default=0.8)
+    run_p.add_argument(
+        "--dedup-state",
+        metavar="PATH",
+        default=None,
+        help="persistent exact-dedup state file for cross-source dedup",
+    )
+    run_p.add_argument(
+        "--bloom-filter",
+        action="store_true",
+        help="use a fixed-memory Bloom filter for exact dedup",
+    )
+    run_p.add_argument(
+        "--bloom-capacity",
+        type=int,
+        default=1_000_000,
+        help="expected document count for the Bloom filter",
+    )
+    run_p.add_argument(
+        "--bloom-fp-rate",
+        type=float,
+        default=0.01,
+        help="Bloom filter false-positive rate in (0, 1)",
+    )
     run_p.add_argument("--validation-ratio", type=float, default=0.02)
     run_p.add_argument("--shard-size", type=int, default=100_000)
     run_p.add_argument("--no-gzip", action="store_true")
@@ -136,9 +212,25 @@ def _cmd_run(args: argparse.Namespace) -> int:
         require_bangla=not args.no_bangla_check,
         min_bangla_ratio=args.min_bangla_ratio,
         allow_pii=args.allow_pii,
+        pii_mode=args.pii_mode,
+        check_spam=not args.no_spam_check,
+        spam_threshold=args.spam_threshold,
+        check_toxic=not args.no_toxic_check,
+        toxic_classifier=args.toxic_classifier,
+        toxic_classifier_threshold=args.toxic_threshold,
+        require_license=args.require_license,
+        license_map_path=args.license_map,
+        license_allowlist=tuple(a.strip() for a in args.license_allowlist.split(",") if a.strip())
+        if args.license_allowlist
+        else None,
+        copyrighted_titles_path=args.copyrighted_titles,
         dedup_exact=not args.no_exact_dedup,
         dedup_near=args.near_dedup,
         dedup_threshold=args.dedup_threshold,
+        dedup_state_path=args.dedup_state,
+        dedup_bloom=args.bloom_filter,
+        dedup_bloom_capacity=args.bloom_capacity,
+        dedup_bloom_fp_rate=args.bloom_fp_rate,
         validation_ratio=args.validation_ratio,
         shard_size=args.shard_size,
         gzip_output=not args.no_gzip,
@@ -147,8 +239,18 @@ def _cmd_run(args: argparse.Namespace) -> int:
     print(f"Pipeline complete: {_MAIN}")
     print(f"  raw docs:        {summary['raw']:,}")
     print(f"  normalized:      {summary['normalized']:,}")
+    print(f"  after license:   {summary.get('after_license', summary['normalized']):,}")
     print(f"  after filter:    {summary['after_filter']:,}")
+    print(f"  after spam:      {summary.get('after_spam', summary['after_filter']):,}")
+    print(f"  after toxic:     {summary.get('after_toxic', summary['after_spam']):,}")
     print(f"  after dedup:     {summary['after_dedup']:,}")
+    dedup_counts = summary.get("dedup")
+    if dedup_counts:
+        print(
+            f"  dedup rate:      {dedup_counts['rate']:.2%} "
+            f"(exact {dedup_counts['removed_exact']:,}, "
+            f"near {dedup_counts['removed_near']:,})"
+        )
     print(f"  train / val:     {summary['train']:,} / {summary['validation']:,}")
     print(f"  version id:      {summary['version_id']}")
     print(f"  manifest:        {summary['manifest']}")

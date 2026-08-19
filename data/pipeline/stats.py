@@ -40,6 +40,7 @@ def compute_stats(records: Iterator[dict[str, Any]], *, text_key: str = "text") 
     sources: Counter[str] = Counter()
     splits: Counter[str] = Counter()
     langs: Counter[str] = Counter()
+    licenses: Counter[str] = Counter()
 
     from data.pipeline.quality import detect_language
 
@@ -52,6 +53,7 @@ def compute_stats(records: Iterator[dict[str, Any]], *, text_key: str = "text") 
         char_lengths.append(len(text))
         word_counts.append(len(words))
         sources[record.get("source", "unknown")] += 1
+        licenses[record.get("license", "unknown")] += 1
         if "split" in record:
             splits[record["split"]] += 1
         langs[detect_language(text)] += 1
@@ -65,6 +67,7 @@ def compute_stats(records: Iterator[dict[str, Any]], *, text_key: str = "text") 
         "sources": dict(sources.most_common()),
         "splits": dict(splits),
         "languages": dict(langs.most_common()),
+        "licenses": dict(licenses.most_common()),
     }
 
 
@@ -104,12 +107,27 @@ def write_report(stats: dict, out_path: Path) -> Path:
         for k, v in stats.get("sources", {}).items():
             lines.append(f"| {k} | {v:,} |")
         lines.append("")
+    if stats.get("licenses"):
+        lines.append("## Licenses")
+        lines.append("| license | docs |")
+        lines.append("| --- | --- |")
+        for k, v in stats.get("licenses", {}).items():
+            lines.append(f"| {k} | {v:,} |")
+        lines.append("")
     if stats.get("splits"):
         lines.append("## Split sizes")
         lines.append("| split | docs |")
         lines.append("| --- | --- |")
         for k, v in stats.get("splits", {}).items():
             lines.append(f"| {k} | {v:,} |")
+        lines.append("")
+    if stats.get("dedup"):
+        dedup_stats = stats["dedup"]
+        lines.append("## Deduplication")
+        lines.append(f"- **input**: {dedup_stats['input']:,}")
+        lines.append(f"- **removed exact**: {dedup_stats['removed_exact']:,}")
+        lines.append(f"- **removed near**: {dedup_stats['removed_near']:,}")
+        lines.append(f"- **dedup rate**: {dedup_stats['rate']:.2%}")
         lines.append("")
 
     report_path = out_path / "REPORT.md"

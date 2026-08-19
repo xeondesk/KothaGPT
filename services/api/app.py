@@ -1,21 +1,37 @@
 from fastapi import FastAPI
-from pydantic import BaseModel
 
-app = FastAPI(title="Kotha GPT API", version="0.1.0")
+from .api.routers import (
+    agents_router,
+    chat_router,
+    embeddings_router,
+    models_router,
+    rerank_router,
+    tools_router,
+    ws_router,
+)
+from .core import backend_factory
+from .core.example_backend import CannedBackend, HFExampleBackend
+from .core.mock_backend import MockBackend
 
-class ChatRequest(BaseModel):
-    message: str
-    model: str = "kothagpt"
+backend_factory.register("mock", MockBackend)
+backend_factory.register("canned", CannedBackend)
+backend_factory.register("hf", HFExampleBackend)
+
+app = FastAPI(
+    title="Kotha GPT API",
+    description="Bangla-first AI platform: chat, streaming, tools, agents, embeddings, reranking.",
+    version="0.2.0",
+)
+
+app.include_router(models_router)
+app.include_router(chat_router)
+app.include_router(embeddings_router)
+app.include_router(rerank_router)
+app.include_router(tools_router)
+app.include_router(agents_router)
+app.include_router(ws_router)
+
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "service": "kothagpt-api"}
-
-@app.post("/v1/chat")
-def chat(request: ChatRequest):
-    # Replace this stub with the inference gateway.
-    return {
-        "model": request.model,
-        "message": request.message,
-        "output": "Inference backend not configured yet."
-    }
+    return {"status": "ok", "service": "kothagpt-api", "version": app.version}

@@ -1,0 +1,7 @@
+# Optional: tiny Hugging Face example model backend for /v1/chat.
+#
+# Install only if you want the HF example backend:
+#   KOTHAGPT_BACKEND=hf make serve-proto
+# The base requirements.txt stays intentionally light.
+torch>=2.1
+transformers>=4.38

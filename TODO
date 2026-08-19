@@ -1,372 +1,83 @@
-# Kotha GPT - TODO (Kotha AI model + dataset + training + inference + agent platform)*
-
-## 🟢 Phase 1 — লক্ষ্য ও ভিত্তি নির্ধারণ
-
-### Sub-phase 1.1 — Goals ও Scope
-* [ ] AI-এর মূল উদ্দেশ্য নির্ধারণ
-* [ ] বাংলা, ইংরেজি নাকি multilingual AI হবে ঠিক করা
-* [ ] Chat AI / Coding AI / Agent AI / Research AI নির্বাচন
-
-### Sub-phase 1.2 — Users ও MVP
-* [ ] Target users নির্ধারণ
-* [ ] MVP feature list তৈরি
-* [ ] Model size নির্ধারণ — 1B / 3B / 7B / 14B+
-
-### Sub-phase 1.3 — Strategy ও Setup
-* [ ] License ও open-source strategy নির্ধারণ
-* [ ] Project name ও repository তৈরি
-
-## 🟢 Phase 2 — Dataset তৈরি
-
-### Sub-phase 2.1 — Data Collection
-* [ ] বাংলা text dataset সংগ্রহ
-* [ ] ইংরেজি dataset সংগ্রহ
-* [ ] Open-source dataset সংগ্রহ
-* [ ] Web corpus তৈরি
-* [ ] বই/ডকুমেন্ট dataset সংগ্রহ
-* [ ] Code dataset সংগ্রহ
-
-### Sub-phase 2.2 — Supervised Data তৈরি
-* [ ] Question → Answer dataset তৈরি
-* [ ] Instruction dataset তৈরি
-* [ ] Conversation dataset তৈরি
-
-### Sub-phase 2.3 — Cleaning ও Filtering
-* [x] Dataset deduplication
-* [ ] Spam filtering
-* [ ] Toxic-content filtering
-* [x] PII filtering
-* [ ] Copyright/licensing validation
-
-### Sub-phase 2.4 — Quality ও Versioning
-* [ ] Dataset quality scoring
-* [x] Train/validation/test split তৈরি
-* [x] Dataset versioning ব্যবস্থা তৈরি
-
-## 🟢 Phase 3 — Bangla Language Foundation
-
-### Sub-phase 3.1 — Tokenizer
-* [x] বাংলা tokenizer তৈরি/নির্বাচন
-* [x] বাংলা vocabulary তৈরি
-* [x] Token efficiency পরীক্ষা
-
-### Sub-phase 3.2 — Normalization
-* [x] বাংলা Unicode normalization
-* [ ] বাংলা punctuation normalization
-* [ ] বাংলা-English mixed text handling
-* [ ] বাংলা transliteration handling
-
-### Sub-phase 3.3 — Evaluation
-* [ ] বাংলা benchmark dataset তৈরি
-* [ ] বাংলা language evaluation তৈরি
-
-## 🟢 Phase 4 — Base Model
-
-### Sub-phase 4.1 — Architecture Design
-* [ ] Transformer architecture নির্বাচন
-* [ ] Model configuration system তৈরি
-
-### Sub-phase 4.2 — Core Layers
-* [ ] Embedding layer
-* [ ] Attention layer
-* [ ] Transformer blocks
-* [ ] Feed-forward network
-* [ ] Normalization
-* [ ] Positional encoding
-* [ ] Output head
-
-### Sub-phase 4.3 — Training Infrastructure
-* [ ] PyTorch ভিত্তিক training framework তৈরি
-* [ ] Model checkpoint system
-* [ ] Distributed training support
-* [ ] Mixed precision training
-* [ ] Gradient accumulation
-* [ ] Gradient checkpointing
-* [ ] Training monitoring
-
-## 🟢 Phase 5 — Pre-training
-
-### Sub-phase 5.1 — Data Pipeline
-* [ ] Dataset tokenizer pipeline তৈরি
-* [ ] Training shards তৈরি
-* [ ] Data loader optimize করা
-
-### Sub-phase 5.2 — Training Setup
-* [ ] GPU training environment তৈরি
-* [ ] Small model দিয়ে test training
-* [ ] Learning-rate scheduling
-* [ ] Long-context training
-
-### Sub-phase 5.3 — Training Run
-* [ ] Loss monitoring
-* [ ] Validation monitoring
-* [ ] Checkpointing
-* [ ] Resume training
-
-### Sub-phase 5.4 — Scale ও Evaluate
-* [ ] Large-scale pre-training
-* [ ] Model evaluation
-
-## 🟢 Phase 6 — Instruction Tuning
-
-### Sub-phase 6.1 — Data তৈরি
-* [ ] Instruction dataset তৈরি
-* [ ] Reasoning dataset তৈরি
-* [ ] Conversation tuning
-* [ ] Function-calling dataset
-* [ ] Tool-use dataset
-
-### Sub-phase 6.2 — SFT Tuning
-* [ ] SFT pipeline তৈরি
-* [ ] বাংলা instruction tuning
-* [ ] English instruction tuning
-* [ ] Multilingual instruction tuning
-* [ ] Coding instruction tuning
-
-### Sub-phase 6.3 — Evaluation
-* [ ] SFT evaluation
-
-## 🟢 Phase 7 — Preference / Alignment
-
-### Sub-phase 7.1 — Data ও Reward Model
-* [ ] Human preference dataset তৈরি
-* [ ] Reward model তৈরি
-
-### Sub-phase 7.2 — Alignment Method
-* [ ] DPO pipeline তৈরি
-
-### Sub-phase 7.3 — Alignment Evaluation
-* [ ] Preference evaluation
-* [ ] Hallucination evaluation
-* [ ] Safety evaluation
-* [ ] Helpfulness evaluation
-* [ ] Bengali quality evaluation
-* [ ] Refusal behavior evaluation
-
-## 🟢 Phase 8 — নিজের AI Runtime
-
-### Sub-phase 8.1 — Core Inference
-* [ ] Model inference engine
-* [ ] Model loading system
-* [ ] Model registry
-* [ ] Version management
-
-### Sub-phase 8.2 — Performance
-* [ ] Streaming response
-* [ ] KV cache
-* [ ] Batch inference
-* [ ] Quantization
-
-### Sub-phase 8.3 — Deployment
-* [ ] CPU inference
-* [ ] GPU inference
-* [ ] API server
-* [ ] Authentication
-* [ ] Rate limiting
-
-## 🟢 Phase 9 — RAG / Knowledge System
-
-### Sub-phase 9.1 — Ingestion
-* [ ] Document ingestion
-* [ ] PDF parser
-* [ ] Web crawler
-* [ ] Text chunking
-
-### Sub-phase 9.2 — Retrieval
-* [ ] Embedding model
-* [ ] Vector database
-* [ ] Hybrid search
-* [ ] Semantic search
-
-### Sub-phase 9.3 — Quality ও Management
-* [ ] Reranking
-* [ ] Context retrieval
-* [ ] Citation system
-* [ ] Knowledge-base management
-
-## 🟢 Phase 10 — AI Agent
-
-### Sub-phase 10.1 — Core
-* [ ] Tool registry
-* [ ] Function calling
-
-### Sub-phase 10.2 — Tools
-* [ ] Browser tool
-* [ ] Search tool
-* [ ] Code execution tool
-* [ ] File tool
-* [ ] Database tool
-
-### Sub-phase 10.3 — Memory
-* [ ] Memory system
-* [ ] Short-term memory
-* [ ] Long-term memory
-
-### Sub-phase 10.4 — Agent Loop ও Safety
-* [ ] Planning engine
-* [ ] Agent loop
-* [ ] Multi-agent orchestration
-* [ ] Agent permission system
-* [ ] Agent sandbox
-
-## 🟢 Phase 11 — নিজের AI Platform
-
-### Sub-phase 11.1 — Chat Experience
-* [ ] Chat UI
-* [ ] Model selector
-* [ ] Conversation history
-* [ ] File upload
-* [ ] Web search
-
-### Sub-phase 11.2 — Interfaces
-* [ ] RAG interface
-* [ ] Agent interface
-
-### Sub-phase 11.3 — Developer Tools
-* [ ] API dashboard
-* [ ] API key management
-* [ ] Usage analytics
-* [ ] Token monitoring
-
-### Sub-phase 11.4 — Playgrounds
-* [ ] Model playground
-* [ ] Prompt playground
-* [ ] Dataset playground
-* [ ] Evaluation dashboard
-
-## 🟢 Phase 12 — Developer SDK
-
-### Sub-phase 12.1 — SDKs
-* [ ] Python SDK
-* [ ] TypeScript SDK
-* [ ] Rust SDK
-* [ ] Go SDK
-
-### Sub-phase 12.2 — APIs
-* [ ] REST API
-* [ ] Streaming API
-* [ ] WebSocket API
-* [ ] Tool API
-* [ ] Agent API
-* [ ] Embedding API
-* [ ] Reranking API
-* [ ] Model API
-
-### Sub-phase 12.3 — Developer Experience
-* [ ] Documentation
-* [ ] Examples
-* [ ] CLI
-
-## 🟢 Phase 13 — Evaluation
-
-### Sub-phase 13.1 — Core Benchmarks
-* [ ] General knowledge benchmark
-* [ ] Bengali benchmark
-* [ ] English benchmark
-* [ ] Coding benchmark
-* [ ] Reasoning benchmark
-* [ ] Math benchmark
-
-### Sub-phase 13.2 — System Benchmarks
-* [ ] RAG benchmark
-* [ ] Agent benchmark
-* [ ] Hallucination benchmark
-* [ ] Safety benchmark
-
-### Sub-phase 13.3 — Performance
-* [ ] Latency benchmark
-* [ ] Token-efficiency benchmark
-
-### Sub-phase 13.4 — Final Validation
-* [ ] Human evaluation
-* [ ] Regression testing
-
-## 🟢 Phase 14 — Production Infrastructure
-
-### Sub-phase 14.1 — Compute
-* [ ] GPU cluster
-* [ ] Model serving
-* [ ] Load balancing
-* [ ] Autoscaling
-
-### Sub-phase 14.2 — Data Stores
-* [ ] Redis caching
-* [ ] PostgreSQL
-* [ ] Object storage
-* [ ] Vector database
-* [ ] Queue system
-
-### Sub-phase 14.3 — Observability
-* [ ] Metrics
-* [ ] Logs
-* [ ] Tracing
-* [ ] Cost monitoring
-
-### Sub-phase 14.4 — Reliability
-* [ ] Disaster recovery
-
-## 🔴 Phase 15 — Security
-
-### Sub-phase 15.1 — Application Security
-* [ ] Prompt injection protection
-* [ ] Tool authorization
-* [ ] Agent sandboxing
-* [ ] Secret isolation
-
-### Sub-phase 15.2 — API Security
-* [ ] API authentication
-* [ ] API rate limiting
-
-### Sub-phase 15.3 — Data Security
-* [ ] Data encryption
-* [ ] PII detection
-* [ ] Audit logs
-
-### Sub-phase 15.4 — Model Security
-* [ ] Model abuse detection
-* [ ] Dataset poisoning detection
-* [ ] Supply-chain security
-* [ ] Secure model artifacts
-
-### Sub-phase 15.5 — Final Assessment
-* [ ] Red-team testing
-
-## 🚀 Phase 16 — নিজের AI Ecosystem
-
-### Sub-phase 16.1 — Hubs
-* [ ] AI model hub
-* [ ] Dataset hub
-* [ ] Evaluation hub
-
-### Sub-phase 16.2 — Marketplaces
-* [ ] Agent marketplace
-* [ ] Tool marketplace
-* [ ] Prompt library
-
-### Sub-phase 16.3 — Community
-* [ ] Developer portal
-* [ ] AI playground
-* [ ] Community
-* [ ] Open-source repositories
-
-### Sub-phase 16.4 — Platform Services
-* [ ] Model fine-tuning platform
-* [ ] Hosted inference
-* [ ] Enterprise API
-* [ ] Local/offline AI
-
-### Recommended technology stack
-
-**Model:** Python + PyTorch
-**Performance:** Rust + CUDA/Triton
-**API:** FastAPI + Rust services
-**Frontend:** Next.js + TypeScript
-**Database:** PostgreSQL
-**Vector:** Qdrant/pgvector
-**Cache:** Redis
-**Storage:** S3-compatible object storage
-**Training:** PyTorch + FSDP/DeepSpeed
-**Serving:** vLLM/TGI/custom Rust runtime
-**Monitoring:** Prometheus + Grafana + OpenTelemetry
-
-আপনার ক্ষেত্রে আমি এটাকে আরও বড় করে **"নিজস্ব Bangla-first AI ecosystem"** হিসেবে সাজাতাম—যেখানে শুধু একটি LLM নয়, **নিজস্ব tokenizer → dataset → base model → instruction model → reasoning → RAG → agents → SDK → AI platform → model hub** পুরো stack আপনার নিয়ন্ত্রণে থাকবে।
+# Kotha GPT — Roadmap (prioritized, milestone-driven)
+
+Objective: Build a production-capable, Bangla-first AI ecosystem focusing on practical impact, reproducibility, and fast iteration.
+
+Guiding principles:
+
+- Prioritize high-impact components first: dataset quality, tokenizer, inference/runtime, and developer UX.
+- Keep scope incremental: ship a minimal working pipeline (tokenizer → small model → inference API → RAG) before scaling.
+- Measure progress with objective success metrics (data coverage, eval scores, latency, cost).
+
+Top-level milestones (priority order)
+
+1. Foundation (0–6 weeks): dataset, tokenizer, minimal evals, reproducible data pipeline.
+2. Fast inference (2–8 weeks): small 1–3B model experiments, optimized inference path (CPU/GPU), API server.
+3. Instruction & Agents (4–12 weeks): SFT, simple agent tools, RAG integration.
+4. Scale & Production (ongoing): large model training, quantization, orchestration, monitoring, security.
+
+Quick wins / Immediate next actions (first 2 weeks)
+
+- A1 — Audit and canonicalize datasets: produce a small validated Bangla corpus (10–50M tokens). Owner: @you. ETA: 1 week. Metric: token count, dedup rate.
+- A2 — Finalize tokenizer & vocab: pick/configure a unigram/BPE tokenizer and publish vocab. Owner: `ml/tokenizer`. ETA: 3 days. Metric: token coverage, avg tokens per word.
+- A3 — Stand up inference prototype: load a small model (1B) and expose a simple FastAPI endpoint in `services/api`. Owner: `services/api` team. ETA: 1 week. Metric: p95 latency < 500ms (local GPU), response correctness.
+- A4 — Add CI task: dataset checks + tokenizer build + unit tests. Owner: `infra`. ETA: 3 days.
+
+Roadmap structure (for each milestone)
+
+- Goal: clear one-line goal.
+- Deliverables: concrete artifacts (scripts, datasets, APIs, benchmarks).
+- Success metrics: measurable acceptance criteria.
+- Owners: placeholder teams or persons.
+- Risks & mitigations: short bullet points.
+
+Example: Foundation milestone
+
+- Goal: Produce a validated Bangla training corpus and tokenizer.
+- Deliverables:
+ 	- `data/processed/bangla-validated/` (sharded, deduped text)
+ 	- `ml/tokenizer/vocab.json` + tokenizer training script (`ml/tokenizer/train.py`)
+ 	- small evaluation set `evals/bangla-small.yaml`
+- Success metrics:
+ 	- 10M+ clean tokens
+ 	- dedup rate < 3%
+ 	- tokenizer coverage > 99.5% on dev set
+- Owners: Data (collection + cleaning), `ml/tokenizer` (tokenizer)
+- Risks & mitigations:
+ 	- License/PII issues → enforce automated PII and license checks in pipeline.
+ 	- Low-quality sources → add source scoring and human spot checks.
+
+Immediate checklist to add to repo
+
+- [ ] Add `data/processed/README.md` describing final formats and shard structure.
+- [ ] Add `ml/tokenizer/README.md` with training and evaluation commands.
+- [ ] Create `services/api/quickstart.md` with a curl example for the prototype endpoint.
+- [ ] Add lightweight `Makefile` targets: `make data-validate`, `make tokenizer-build`, `make serve-proto`.
+
+Owners & roles (suggested)
+
+- Data: collection, normalization, filters — Owner: `data/` team
+- Tokenizer & token-vocab: Owner: `ml/tokenizer`
+- Model experiments & training: Owner: `ml/pretrain` and `ml/sft`
+- Inference & API: Owner: `services/api`, `inference/`
+- Platform & infra: Owner: `infra/` (CI, monitoring, deployment)
+
+Success metrics (project-wide)
+
+- Data: token volume, dedup rate, PII detection rate
+- Model: eval score on Bengali benchmark, hallucination rate
+- System: latency p95, memory footprint, cost per 1k requests
+- UX: time-to-first-successful-query for external devs
+
+Suggested short-term timeline (12 weeks)
+
+- Weeks 0–2: Foundation quick wins (A1–A4)
+- Weeks 2–6: Inference prototype + tokenizer finalized + small model experiments
+- Weeks 6–12: SFT/Instruction tuning on small model + RAG prototype
+
+Practical next steps I can do now
+
+- I. Update this `TODO` with the prioritized roadmap and checklists (done).
+- II. Create `data/processed/README.md`, `ml/tokenizer/README.md`, and `services/api/quickstart.md` stubs.
+- III. Add small `Makefile` targets for validation and quickserve.
+
+Tell me which of the suggested owners/timeframes you accept, and I will implement the repo changes for the next steps (II–III) automatically.

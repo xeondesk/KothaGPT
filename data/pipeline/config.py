@@ -6,7 +6,18 @@ import dataclasses
 from dataclasses import dataclass
 from pathlib import Path
 
-from data.pipeline import dedup, io, normalize, quality, split, stats, version
+from data.pipeline import (
+    copyright,
+    dedup,
+    io,
+    normalize,
+    quality,
+    spam,
+    split,
+    stats,
+    toxic,
+    version,
+)
 
 __all__ = ["PipelineConfig", "run_pipeline"]
 
@@ -35,11 +46,34 @@ class PipelineConfig:
     require_bangla: bool = True
     min_bangla_ratio: float = 0.5
     allow_pii: bool = False
+    pii_mode: str = "drop"
+
+    # Spam filter
+    check_spam: bool = True
+    spam_threshold: float = 0.6
+
+    # Toxic-content filter
+    check_toxic: bool = True
+    toxic_classifier: str | None = None
+    toxic_classifier_threshold: float = 0.8
+
+    # Copyright / licensing gate
+    require_license: bool = False
+    license_map_path: str | None = None
+    license_allowlist: tuple[str, ...] | None = None
+    copyrighted_titles_path: str | None = None
 
     # Deduplication
     dedup_exact: bool = True
     dedup_near: bool = False
     dedup_threshold: float = 0.8
+
+    # Exact-dedup scale options: persistent cross-source state file, or a
+    # fixed-memory Bloom filter.
+    dedup_state_path: str | None = None
+    dedup_bloom: bool = False
+    dedup_bloom_capacity: int = 1_000_000
+    dedup_bloom_fp_rate: float = 0.01
 
     # Split
     validation_ratio: float = 0.02
@@ -67,6 +101,13 @@ def run_pipeline(cfg: PipelineConfig) -> dict:
 
     summary: dict = {}
 
+    # Copyright/licensing gate inputs.
+    license_map = copyright.load_license_map(cfg.license_map_path) if cfg.license_map_path else {}
+    title_blocklist = copyright.load_title_blocklist(cfg.copyrighted_titles_path)
+    license_allowlist = (
+        frozenset(cfg.license_allowlist) if cfg.license_allowlist else copyright.DEFAULT_ALLOWLIST
+    )
+
     # 1. Read raw records.
     records = list(io.iter_records(source))
     summary["raw"] = len(records)
@@ -87,41 +128,111 @@ def run_pipeline(cfg: PipelineConfig) -> dict:
         normalized.append(record)
     summary["normalized"] = len(normalized)
 
-    # 3. Quality filter.
-    filtered = []
+    # 3. Copyright / licensing gate.
+    licensed = []
     for record in normalized:
+        keep, reasons = copyright.copyright_gate(
+            record,
+            license_map=license_map,
+            allowlist=license_allowlist,
+            require_license=cfg.require_license,
+            title_blocklist=title_blocklist,
+        )
+        if not keep:
+            continue
+        licensed.append(record)
+    summary["after_license"] = len(licensed)
+
+    # 4. Quality filter.
+    filtered = []
+    for record in licensed:
+        text = record["text"]
+        pii_allowed = cfg.allow_pii
+        if cfg.pii_mode == "mask":
+            text, _pii_counts = quality.redact_pii(text)
+            if text != record["text"]:
+                record = dict(record)
+                record["text"] = text
+            pii_allowed = True  # PII already handled by masking
         keep, reasons = quality.quality_filter(
-            record["text"],
+            text,
             min_chars=cfg.min_chars,
             max_chars=cfg.max_chars,
             min_words=cfg.min_words,
             require_bangla=cfg.require_bangla,
             min_bangla_ratio=cfg.min_bangla_ratio,
-            allow_pii=cfg.allow_pii,
+            allow_pii=pii_allowed,
         )
         if keep:
             filtered.append(record)
     summary["after_filter"] = len(filtered)
 
-    # 4. Deduplicate.
-    deduped = dedup.deduplicate(
-        filtered,
+    # 5. Spam filter.
+    clean = []
+    for record in filtered:
+        if cfg.check_spam:
+            keep, _spam_reasons = spam.spam_gate(record["text"], threshold=cfg.spam_threshold)
+            if not keep:
+                continue
+        clean.append(record)
+    summary["after_spam"] = len(clean)
+
+    # 6. Toxic-content filter.
+    safe = []
+    toxic_classifier = (
+        toxic.load_classifier(cfg.toxic_classifier) if cfg.toxic_classifier else None
+    )
+    for record in clean:
+        if cfg.check_toxic:
+            keep, _toxic_reasons = toxic.toxic_gate(
+                record["text"],
+                classifier=toxic_classifier,
+                classifier_threshold=cfg.toxic_classifier_threshold,
+            )
+            if not keep:
+                continue
+        safe.append(record)
+    summary["after_toxic"] = len(safe)
+
+    # 7. Deduplicate.
+    if cfg.dedup_state_path:
+        exact_store: set | dedup.BloomFilter | dedup.ExactDedupState = dedup.ExactDedupState(
+            cfg.dedup_state_path
+        )
+    elif cfg.dedup_bloom:
+        exact_store = dedup.BloomFilter(
+            cfg.dedup_bloom_capacity, fp_rate=cfg.dedup_bloom_fp_rate
+        )
+    else:
+        exact_store = set()
+    deduped, dedup_counts = dedup.deduplicate_with_stats(
+        safe,
         exact=cfg.dedup_exact,
         near=cfg.dedup_near,
         threshold=cfg.dedup_threshold,
+        exact_store=exact_store,
+        near_sharded=True,
     )
+    if isinstance(exact_store, dedup.ExactDedupState):
+        exact_store.save()
     summary["after_dedup"] = len(deduped)
+    summary["dedup"] = dedup_counts
 
-    # 5. Deterministic train/validation split.
+    # 8. Deterministic train/validation split.
     split_records = [split.split_record(r, validation_ratio=cfg.validation_ratio) for r in deduped]
     summary["train"] = sum(1 for r in split_records if r["split"] == "train")
     summary["validation"] = sum(1 for r in split_records if r["split"] == "validation")
 
-    # 6. Statistics report.
+    # 9. Statistics report.
     stats_data = stats.compute_stats(iter(split_records))
+    if "dedup" in summary:
+        dedup_counts = dict(summary["dedup"])
+        removed = dedup_counts["removed_exact"] + dedup_counts["removed_near"]
+        dedup_counts["rate"] = removed / dedup_counts["input"] if dedup_counts["input"] else 0.0
+        stats_data["dedup"] = dedup_counts
     summary["stats"] = stats_data
 
-    # 7. Versioned output.
+    # 10. Versioned output.
     out_root = Path(cfg.out_root)
     version_obj = version.DatasetVersion.create(
         config=cfg_dict,

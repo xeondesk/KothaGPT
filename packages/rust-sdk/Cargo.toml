@@ -1,0 +1,23 @@
+[package]
+name = "kothagpt"
+version = "0.1.0"
+edition = "2021"
+description = "Official Kotha GPT Rust SDK"
+license = "MIT"
+
+[dependencies]
+reqwest = { version = "0.12", features = ["json", "stream"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+tokio-util = "0.7"
+futures-util = "0.3"
+tokio-tungstenite = "0.24"
+url = "2"
+
+[dev-dependencies]
+anyhow = "1"
+
+[lib]
+name = "kothagpt"
+path = "src/lib.rs"

@@ -35,7 +35,11 @@ def iter_records(source: Path) -> Iterator[dict[str, Any]]:
       - ``*.jsonl``    one JSON object per line with a ``text`` field
       - ``*.json``     a JSON array of objects with a ``text`` field
     """
-    files = sorted(p for p in source.rglob("*") if p.suffix.lower() in _SUPPORTED_EXTENSIONS)
+    files = sorted(
+        p
+        for p in source.rglob("*")
+        if not p.name.startswith(".") and p.suffix.lower() in _SUPPORTED_EXTENSIONS
+    )
     if not files:
         raise FileNotFoundError(f"No supported files found under {source}")
     for path in files:

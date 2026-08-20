@@ -120,7 +120,23 @@ confirmed via `docs/foundation-plan.md`).
 - Phase 1 — Data: `docs/dataset-pipeline-plan.md` — collection → filters → split/versioning.
 - Phase 2 — Language: Bangla foundation, tokenizer, benchmarks (DONE; see Wave A–C).
 - Phase 3 — Model: `docs/base-model-plan.md` (architecture + trainer), `docs/pretraining-plan.md` (scale + GPU + long-context).
-- Phase 4 — Alignment: `docs/sft-plan.md` (instruction tuning), `docs/preference-plan.md` (reward/DPO, safety, hallucination, refusal).
+  - Phase 4 — Alignment: `docs/sft-plan.md` (instruction tuning), `docs/preference-plan.md` (reward/DPO, safety, hallucination, refusal).
+
+  Instruction Tuning (foundation implemented)
+
+  - [x] Instruction dataset তৈরি — validated JSONL schema and fixture (`ml/instruction/dataset.py`)
+  - [x] SFT pipeline তৈরি — completion-only prompt masking and CPU/GPU runner (`ml/instruction/sft.py`)
+  - [x] বাংলা instruction tuning — `language=bn` records supported
+  - [x] English instruction tuning — `language=en` records supported
+  - [x] Multilingual instruction tuning — `language=multilingual` records supported
+  - [x] Coding instruction tuning — `category=coding` records supported
+  - [x] Reasoning dataset তৈরি — `category=reasoning` records supported
+  - [x] Conversation tuning — role-based `messages` records supported
+  - [x] Function-calling dataset — `function_call` records supported
+  - [x] Tool-use dataset — `tools` records supported
+  - [x] SFT evaluation — grouped exact and normalized completion matching (`evals/sft.py`)
+  - [ ] Scale training, preference optimization, and model-based quality evaluation
+
 - Phase 5 — Runtime: `docs/runtime-plan.md` (engine, KV cache, batching, quantization, registry, API, auth, rate limiting).
 - Phase 6 — Intelligence: `docs/rag-plan.md` (ingestion, retrieval, citations), `docs/agent-plan.md` (tools, memory, planner, loop, sandbox, permissions).
 - Phase 6b — Context Engineering: `docs/context-engineering-plan.md` (prompts, hierarchy, window, packing, compression, selective context, safe formatting, registry).

@@ -118,6 +118,20 @@ tokenizer-bench:
 eval-bangla:
 	python -m evals.run --suite evals/suites/bangla.yaml
 
+# Instruction tuning: validate records and run completion-only SFT.
+sft-smoke:
+	python -m ml.instruction.sft \
+		--train tests/fixtures/instruction.jsonl \
+		--tokenizer ml/tokenizer/artifacts/best/tokenizer.json \
+		--config ml/configs/smoke.yaml \
+		--device cpu --max-steps 1 --out ml/sft/artifacts/smoke
+
+sft-eval:
+	python -m evals.sft \
+		--records tests/fixtures/instruction.jsonl \
+		--predictions tests/fixtures/instruction.predictions.json \
+		--out evals/results/sft
+
 # Auto review & verify the implementation plans in docs/ (structure + links).
 plans-check:
 	python scripts/check_plans.py

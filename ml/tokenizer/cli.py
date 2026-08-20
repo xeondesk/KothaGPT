@@ -20,7 +20,7 @@ from ml.tokenizer import load_tokenizer, train_bpe, train_unigram
 from ml.tokenizer.benchmark import GATE_THRESHOLDS, SAMPLE_TEXTS, check_benchmark, run_benchmark
 from ml.tokenizer.corpus import load_corpus
 from ml.tokenizer.transliterate import latin_to_bangla
-from ml.tokenizer.vocab import corpus_digest, coverage_report, export_vocab, version_id
+from ml.tokenizer.vocab import coverage_report, export_vocab, version_id
 
 DEFAULT_VOCAB_SIZES = (16000, 32000, 50000)
 
@@ -318,6 +318,8 @@ def _cmd_benchmark(args: argparse.Namespace) -> int:
 
 
 def _cmd_freeze(args: argparse.Namespace) -> int:
+    import hashlib
+
     from data.pipeline import normalize as norm
     from ml.tokenizer.vocab import _write_vocab_files
 
@@ -327,23 +329,31 @@ def _cmd_freeze(args: argparse.Namespace) -> int:
     raw = load_corpus(args.corpus)
     if not raw:
         raise ValueError("empty corpus")
-    print(f"[freeze] loaded {len(raw):,} docs")
+    total_docs = len(raw)
+    print(f"[freeze] loaded {total_docs:,} docs", flush=True)
 
-    corpus = [norm.normalize_text(doc) for doc in raw]
+    # Single pass: normalize each doc exactly once, hash it into the corpus
+    # digest, and keep only every Nth doc for training. This bounds peak memory
+    # to the sample rather than the full corpus.
+    digest_h = hashlib.sha256()
+    train_docs: list[str] = []
+    for i, doc in enumerate(raw):
+        ndoc = norm.normalize_text(doc)
+        digest_h.update(ndoc.encode("utf-8"))
+        digest_h.update(b"\x00")
+        if i % args.sample_stride == 0:
+            train_docs.append(ndoc)
     del raw
-    corpus = [doc for doc in corpus if doc.strip()]
-    if not corpus:
+    train_docs = [doc for doc in train_docs if doc.strip()]
+    if not train_docs:
         raise ValueError("empty corpus after normalization")
-    print(f"[freeze] normalized {len(corpus):,} docs")
+    digest = digest_h.hexdigest()[:12]
 
-    digest = corpus_digest(corpus)
-    print(f"[freeze] corpus digest: {digest}")
-
-    train_docs = corpus[:: args.sample_stride]
     print(
-        f"[freeze] training on {len(train_docs):,} docs "
-        f"(stride {args.sample_stride}; full corpus {len(corpus):,})"
+        f"[freeze] training on {len(train_docs):,} docs (stride {args.sample_stride})",
+        flush=True,
     )
+    print(f"[freeze] corpus digest: {digest}", flush=True)
 
     tokenizer = _train_one(
         args.algorithm,
@@ -353,7 +363,7 @@ def _cmd_freeze(args: argparse.Namespace) -> int:
         max_subword_len=8,
         iterations=8,
     )
-    print(f"[freeze] vocab: {len(tokenizer.vocab):,} (target {args.vocab_size:,})")
+    print(f"[freeze] vocab: {len(tokenizer.vocab):,} (target {args.vocab_size:,})", flush=True)
 
     out_root = Path(args.out)
     best_dir = out_root / "artifacts" / "best"
@@ -387,7 +397,7 @@ def _cmd_freeze(args: argparse.Namespace) -> int:
             return 1
         print("GATE PASSED")
 
-    coverage_docs = corpus[: args.coverage_docs]
+    coverage_docs = train_docs[: args.coverage_docs]
     coverage = coverage_report(tokenizer, coverage_docs)
     print(
         f"[freeze] coverage on {len(coverage_docs):,} docs: "
@@ -411,7 +421,7 @@ def _cmd_freeze(args: argparse.Namespace) -> int:
         args,
         coverage,
         benchmark,
-        len(corpus),
+        total_docs,
         len(train_docs),
     )
     return 0

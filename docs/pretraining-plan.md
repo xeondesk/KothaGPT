@@ -148,7 +148,7 @@ memmap dataset, cpu, 200 steps): start loss 9.47 → end loss 8.46,
 Verified end-to-end: processed corpus → frozen tokenizer → tokenize-shards →
 `ShardedMemmapDataset` → KothaGPT forward/backward on CPU.
 
-### WS-6 — Loss monitoring (`ml/trainer/monitor.py`)
+### WS-6 — Loss monitoring (`ml/trainer/monitor.py`) — DONE
 
 Goal: steer training from loss + throughput, not eyeballs.
 
@@ -161,6 +161,17 @@ Goal: steer training from loss + throughput, not eyeballs.
 - Deliverables: richer `history.jsonl` fields, backend flags, trend guard.
 - Metric: a 100-step CPU run emits complete records (all new fields present);
   the trend guard fires on a synthetic diverging run.
+
+Status: **done** — every macro-step record now carries `tokens_per_sec`
+(tokens in the step / wall time), `grad_norm` (returned by
+`clip_grad_norm_`), and `peak_mem_mb` (`torch.cuda.max_memory_allocated` on
+CUDA, else process RSS via `resource`). Loss-trend guard added:
+`training.trend_guard_patience` (0 = off) + `trend_guard_action`
+(`warn`|`abort`); EMA-smoothed train loss that fails to improve for
+`patience` consecutive macro-steps warns, or raises `TrainingDiverged` to
+abort the run non-zero. `wandb|tensorboard` backends deferred to WS-9.
+Smoke (cpu, 200 steps) emits all fields (~4.6k tok/s); `test_trend_guard_aborts_on_divergence`
+covers the abort path (constant 999.0 loss → fires at patience).
 
 ### WS-7 — Validation monitoring (`ml/trainer/loop.py`)
 

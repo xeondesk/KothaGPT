@@ -16,6 +16,8 @@ training:
   eval_interval: 50
   log_interval: 10
   save_interval: 100
+  trend_guard_patience: 30
+  trend_guard_action: abort
 
 data:
   train: data/tokenized/CURRENT

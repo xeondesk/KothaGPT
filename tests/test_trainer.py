@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
 import torch
 
 from ml.models import BaseModelConfig, KothaGPT, ModelConfig, TrainingConfig
@@ -118,6 +119,33 @@ def test_checkpoint_metadata_saved(config, tokenizer, tmp_path: Path) -> None:
     assert state["metadata"]["config_digest"]
     assert (out / "config.json").exists()
     assert (out / "metadata.json").exists()
+
+
+def test_trend_guard_aborts_on_divergence(config, tokenizer, tmp_path: Path, monkeypatch) -> None:
+    from ml.trainer.loop import TrainingDiverged
+
+    corpus = make_corpus(tmp_path, docs=64)
+    train_dataset = CausalLMDataset(build_blocks(corpus, tokenizer, block_size=8))
+    cfg = BaseModelConfig(
+        model=config.model,
+        training=TrainingConfig(
+            batch_size=2,
+            max_steps=10,
+            mixed_precision="none",
+            trend_guard_patience=4,
+            trend_guard_action="abort",
+        ),
+        data=config.data,
+    )
+    model = KothaGPT(cfg.model)
+
+    # Force a flat (never-improving) loss so the guard must fire.
+    def _flat_loss(self, input_ids, labels=None, **kwargs):
+        return {"loss": torch.tensor(999.0, requires_grad=True)}
+
+    monkeypatch.setattr(model, "forward", _flat_loss.__get__(model, KothaGPT))
+    with pytest.raises(TrainingDiverged):
+        train(model, cfg, train_dataset, None, out_dir=tmp_path / "div", device="cpu")
 
 
 def test_train_tiny_hidden_size(config, tokenizer, tmp_path: Path) -> None:

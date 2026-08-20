@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import math
+import resource
+import time
 from contextlib import nullcontext
 from pathlib import Path
 
@@ -24,6 +26,10 @@ from .monitor import Monitor
 from .scheduler import build_scheduler, group_parameters
 
 
+class TrainingDiverged(RuntimeError):
+    """Raised when the loss-trend guard aborts a run (trend_guard_action=abort)."""
+
+
 def _autocast_context(training: TrainingConfig, device: str):
     if training.mixed_precision in ("bf16", "fp16") and device.startswith("cuda"):
         dtype = torch.bfloat16 if training.mixed_precision == "bf16" else torch.float16
@@ -39,6 +45,14 @@ def _make_optimizer(model: torch.nn.Module, training: TrainingConfig):
         betas=(training.beta1, training.beta2),
         weight_decay=training.weight_decay,
     )
+
+
+def _peak_mem_mb(device: str) -> float:
+    """Peak resident memory for the step, in MB (GPU alloc or process RSS)."""
+    if device.startswith("cuda"):
+        return torch.cuda.max_memory_allocated(device) / 1e6
+    rss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss  # KB on Linux
+    return rss / 1024.0
 
 
 def _validate_step(
@@ -145,15 +159,24 @@ def train(
 
     global_step = start_step
     accumulated_loss = 0.0
+    accumulated_tokens = 0
     last_loss = 0.0
     micro_batches = training.gradient_accumulation_steps
     epoch = 0
+    step_start = time.monotonic()
+    smoothed_loss = 0.0
+    last_smoothed: float | None = None
+    flat_steps = 0
 
     def finalize_step() -> None:
-        nonlocal accumulated_loss, last_loss, global_step
+        nonlocal accumulated_loss, accumulated_tokens, last_loss, global_step, step_start
+        nonlocal smoothed_loss, last_smoothed, flat_steps
         if scaler is not None:
             scaler.unscale_(optimizer)
-        torch.nn.utils.clip_grad_norm_(model.parameters(), training.grad_clip)
+        grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), training.grad_clip)
+        grad_norm_val = (
+            grad_norm.item() if isinstance(grad_norm, torch.Tensor) else float(grad_norm)
+        )
         if scaler is not None:
             scaler.step(optimizer)
             scaler.update()
@@ -167,12 +190,44 @@ def train(
             torch.tensor([accumulated_loss], device=device), dist
         ).item()
         last_loss = reported_loss
+
+        now = time.monotonic()
+        dt = max(now - step_start, 1e-9)
+        tokens_per_sec = accumulated_tokens / dt
+        step_tokens = accumulated_tokens
         accumulated_loss = 0.0
+        accumulated_tokens = 0
+        step_start = now
+
         lr = optimizer.param_groups[0]["lr"]
         monitor.log(
             global_step,
-            {"loss": reported_loss, "lr": lr, "tokens": input_ids.numel()},
+            {
+                "loss": reported_loss,
+                "lr": lr,
+                "tokens": step_tokens,
+                "tokens_per_sec": tokens_per_sec,
+                "grad_norm": grad_norm_val,
+                "peak_mem_mb": _peak_mem_mb(device),
+            },
         )
+
+        if training.trend_guard_patience > 0 and is_main_rank(rank):
+            smoothed_loss = (
+                0.9 * smoothed_loss + 0.1 * reported_loss if smoothed_loss else reported_loss
+            )
+            if last_smoothed is not None:
+                if smoothed_loss >= last_smoothed - 1e-6:
+                    flat_steps += 1
+                else:
+                    flat_steps = 0
+                if flat_steps >= training.trend_guard_patience:
+                    msg = f"smoothed loss {smoothed_loss:.4f} not improving for {flat_steps} steps"
+                    if training.trend_guard_action == "abort":
+                        raise TrainingDiverged(msg)
+                    print(f"[trend-guard] WARNING: {msg}", flush=True)
+                    flat_steps = 0
+            last_smoothed = smoothed_loss
 
         if (
             is_main_rank(rank)
@@ -209,6 +264,7 @@ def train(
             else:
                 loss.backward()
             accumulated_loss += loss.item()
+            accumulated_tokens += input_ids.numel()
 
             if micro_count % micro_batches == 0:
                 finalize_step()

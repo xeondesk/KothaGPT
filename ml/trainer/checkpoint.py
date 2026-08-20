@@ -104,9 +104,21 @@ def _checkpoint_payload(
 
 
 def _atomic_save(payload: dict[str, Any], path: Path) -> None:
-    tmp_path = path.with_suffix(".tmp")
-    torch.save(payload, tmp_path)
-    os.replace(tmp_path, path)
+    tmp_path = path.with_suffix(path.suffix + ".tmp")
+    try:
+        torch.save(payload, tmp_path)
+        os.replace(tmp_path, path)
+    finally:
+        tmp_path.unlink(missing_ok=True)
+
+
+def _atomic_write_text(content: str, path: Path) -> None:
+    tmp_path = path.with_suffix(path.suffix + ".tmp")
+    try:
+        tmp_path.write_text(content, encoding="utf-8")
+        os.replace(tmp_path, path)
+    finally:
+        tmp_path.unlink(missing_ok=True)
 
 
 def save_checkpoint(
@@ -124,20 +136,16 @@ def save_checkpoint(
     checkpoints = out_dir / "checkpoints"
     checkpoints.mkdir(parents=True, exist_ok=True)
 
-    (out_dir / "config.json").write_text(
-        json.dumps(
-            {
-                "model": config.model.to_dict(),
-                "training": config.training.to_dict(),
-                "data": config.data.to_dict(),
-            },
-            indent=2,
-        ),
-        encoding="utf-8",
-    )
-    (out_dir / "metadata.json").write_text(
-        json.dumps(metadata, indent=2) + "\n", encoding="utf-8"
-    )
+    config_text = json.dumps(
+        {
+            "model": config.model.to_dict(),
+            "training": config.training.to_dict(),
+            "data": config.data.to_dict(),
+        },
+        indent=2,
+    ) + "\n"
+    _atomic_write_text(config_text, out_dir / "config.json")
+    _atomic_write_text(json.dumps(metadata, indent=2) + "\n", out_dir / "metadata.json")
 
     final_path = checkpoints / f"step-{step:07d}.pt"
     _atomic_save(

@@ -205,14 +205,31 @@ def test_resume_model_mismatch_raises(config, tokenizer, tmp_path: Path) -> None
 def test_checkpoint_pruning_keeps_last(config, tokenizer, tmp_path: Path) -> None:
     from dataclasses import replace
 
-
     dataset = CausalLMDataset(build_blocks(make_corpus(tmp_path, docs=8), tokenizer, block_size=8))
-    pruned_cfg = replace(
-        config, training=replace(config.training, keep_last=1)
-    )
+    pruned_cfg = replace(config, training=replace(config.training, keep_last=1))
     model = KothaGPT(pruned_cfg.model)
     out = tmp_path / "run"
     train(model, pruned_cfg, dataset, None, out_dir=out, device="cpu")
     checkpoints = sorted((out / "checkpoints").glob("step-*.pt"))
     assert len(checkpoints) == 1
     assert step_of(checkpoints[0]) == 4
+
+
+def test_best_checkpoint_survives_pruning_and_matches_metadata(config, tokenizer, tmp_path: Path) -> None:
+    from dataclasses import replace
+
+    dataset = CausalLMDataset(build_blocks(make_corpus(tmp_path, docs=16), tokenizer, block_size=8))
+    pruned_cfg = replace(
+        config,
+        training=replace(config.training, keep_last=1, eval_interval=1, eval_batches=1),
+    )
+    out = tmp_path / "run"
+    train(KothaGPT(pruned_cfg.model), pruned_cfg, dataset, dataset, out_dir=out, device="cpu")
+
+    best = out / "checkpoints" / "best.pt"
+    assert best.is_file()
+    state = load_checkpoint(best)
+    metadata = json.loads((out / "metadata.json").read_text(encoding="utf-8"))
+    assert state["metadata"] == metadata
+    assert state["step"] >= 1
+    assert len(list((out / "checkpoints").glob("step-*.pt"))) == 1

@@ -211,6 +211,12 @@ pre-training scale).
 - Deliverables: `best` retention, CI round-trip test, run_id metadata.
 - Metric: round-trip test passes; `metadata.json` contains run_id + digests.
 
+Status: **done** — checkpoint sidecars and full training-state payloads now use
+atomic temp-file + rename writes with cleanup on failure. Rolling `step-*.pt`
+pruning excludes `best.pt`, and checkpoint tests cover best retention plus
+metadata parity. Existing resume round-trip tests cover weights, optimizer,
+scheduler, RNG, and next-step loss reproducibility.
+
 ### WS-9 — Resume training (`ml/trainer/cli.py`, `--resume`)
 
 Goal: never lose a run to a node failure or a reprioritized GPU.

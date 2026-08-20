@@ -40,7 +40,9 @@ Guiding principles:
 
 ## Workstreams
 
-### WS-1 — Document ingestion (`services/rag/ingest.py`)
+### WS-1 — Document ingestion
+
+> Foundation slice implemented: dependency-light chunking, lexical retrieval, and citation-aware context packing are available under `services/rag/`. External parsers, embeddings, Qdrant, and persistent KB management remain pending. (`services/rag/ingest.py`)
 
 Goal: a validated ingestion pipeline from raw file → stored, searchable chunks.
 

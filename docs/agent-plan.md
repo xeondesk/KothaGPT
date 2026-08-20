@@ -43,7 +43,9 @@ Guiding principles:
 
 ## Workstreams
 
-### WS-1 — Tool registry (`services/agents/registry.py`)
+### WS-1 — Tool registry
+
+> Foundation slice implemented: local tool registry, permission gate, function-call parsing, and bounded agent loop are available under `services/agents/`. External sandboxing, model dispatch, memory, and orchestration remain pending. (`services/agents/registry.py`)
 
 Goal: one schema-driven catalog of everything an agent may call.
 

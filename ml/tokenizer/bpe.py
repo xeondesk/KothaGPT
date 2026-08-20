@@ -100,6 +100,7 @@ def train_bpe(
                 pair_to_words[pair].discard(word)
                 if pair_counts[pair] <= 0:
                     del pair_counts[pair]
+                    pair_to_words.pop(pair, None)
                 else:
                     heapq.heappush(heap, (-pair_counts[pair], pair))
             new_pairs = Counter(zip(new_sym, new_sym[1:]))
@@ -107,6 +108,9 @@ def train_bpe(
                 pair_counts[pair] += wcnt * multiplicity
                 pair_to_words[pair].add(word)
                 heapq.heappush(heap, (-pair_counts[pair], pair))
+        if len(heap) > 8 * max(len(pair_counts), 1):
+            heap = [(-cnt, pair) for pair, cnt in pair_counts.items()]
+            heapq.heapify(heap)
         if log is not None and len(merges) % 1000 == 0:
             log(f"bpe: {len(merges)} merges, vocab={len(vocab)}")
 

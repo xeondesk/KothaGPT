@@ -47,6 +47,23 @@ data-tokenize:
 		--block-size 4096 \
 		--out data/tokenized
 
+# WS-5: CPU smoke training. Tokenize at the smoke model's context (512) so
+# block size matches max_position_embeddings, then run a short CPU training
+# pass over the tokenized shards via the memmap dataset.
+data-tokenize-smoke:
+	python -m ml.tokenize_shards \
+		--corpus $$(cat data/processed/CURRENT 2>/dev/null) \
+		--tokenizer ml/tokenizer/artifacts/best \
+		--block-size 512 \
+		--out data/tokenized
+
+train-smoke: data-tokenize-smoke
+	python -m ml.trainer.cli run \
+		--config ml/configs/smoke.yaml \
+		--device cpu \
+		--out ml/pretrain/artifacts/smoke \
+		--max-steps 200
+
 tokenizer-build:
 	@echo "Building tokenizer artifacts..."
 	python -m ml.tokenizer.cli train \
@@ -89,6 +106,10 @@ tokenizer-bench:
 # dated JSON report + markdown report under evals/results/.
 eval-bangla:
 	python -m evals.run --suite evals/suites/bangla.yaml
+
+# Auto review & verify the implementation plans in docs/ (structure + links).
+plans-check:
+	python scripts/check_plans.py
 
 # WS-1/WS-6: retrain on the normalized corpus and freeze tokenizer + vocab
 # (artifacts/best/, vocab/, DECISION.md). On real data use the target vocab

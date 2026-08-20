@@ -161,7 +161,7 @@ def tokenize_corpus(
 
     tokenizer_digest = _sha256_file(tok_file)
     corpus_version = manifest["version_id"]
-    out_dir = Path(out_root) / f"{corpus_version}-{tokenizer_digest}"
+    out_dir = Path(out_root) / f"{corpus_version}-{tokenizer_digest}-b{block_size}"
     if out_dir.exists() and not force:
         raise FileExistsError(f"{out_dir} already exists (re-run with --force to overwrite)")
 
@@ -182,6 +182,7 @@ def tokenize_corpus(
     (out_dir / "MANIFEST.json").write_text(
         json.dumps(top, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
+    (Path(out_root) / "CURRENT").write_text(out_dir.name + "\n", encoding="utf-8")
     return top
 
 
@@ -219,7 +220,7 @@ def main(argv: list[str] | None = None) -> int:
             flush=True,
         )
     print(
-        f"wrote MANIFEST to {Path(args.out) / (result['corpus_version'] + '-' + result['tokenizer_digest'])}",
+        f"wrote MANIFEST to {Path(args.out) / (result['corpus_version'] + '-' + result['tokenizer_digest'] + '-b' + str(result['block_size']))}",
         flush=True,
     )
     return 0

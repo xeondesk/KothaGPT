@@ -28,6 +28,19 @@ jobs:
       - name: WS-9 Bangla evaluation (mock backend)
         run: make eval-bangla
 
+  plans:
+    name: Implementation plan review & verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Review + verify all implementation plans
+        run: make plans-check
+      - name: Plan checker unit tests
+        run: python -m pytest tests/test_plan_check.py
+
   test:
     name: Unit tests
     runs-on: ubuntu-latest
@@ -38,6 +51,8 @@ jobs:
           python-version: "3.12"
       - name: Install dependencies
         run: pip install -r services/api/requirements.txt -e packages/python-sdk packages/cli
+      - name: Install CPU torch (trainer tests)
+        run: pip install torch --index-url https://download.pytorch.org/whl/cpu
       - name: Run tests
         run: make test
       - name: Tokenize shards (WS-1/2)

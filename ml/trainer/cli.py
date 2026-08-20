@@ -20,6 +20,14 @@ def _is_tokenized(path: str) -> bool:
     return (Path(path) / "MANIFEST.json").is_file()
 
 
+def _resolve_data_path(path: str) -> Path:
+    """Resolve a ``data/tokenized/CURRENT`` pointer to its concrete dir."""
+    p = Path(path)
+    if p.is_file() and p.name == "CURRENT":
+        return p.parent / p.read_text(encoding="utf-8").strip()
+    return p
+
+
 def _build_datasets(data, block_size: int, dist: DistributedConfig) -> tuple:
     """Build train/validation datasets, preferring the WS-1 tokenized shards.
 
@@ -27,29 +35,29 @@ def _build_datasets(data, block_size: int, dist: DistributedConfig) -> tuple:
     memmap-backed :class:`ShardedMemmapDataset` is used with per-rank shard
     assignment; otherwise the eager ``build_blocks`` path is kept.
     """
-    from pathlib import Path
 
     rank = dist.rank if dist.distributed else None
     world_size = dist.world_size if dist.distributed else None
 
-    if _is_tokenized(data.train):
+    train_dir = _resolve_data_path(data.train)
+    val_dir = _resolve_data_path(data.validation)
+
+    if _is_tokenized(str(train_dir)):
         train_dataset = ShardedMemmapDataset(
-            data.train, split="train", rank=rank, world_size=world_size
+            train_dir, split="train", rank=rank, world_size=world_size
         )
     else:
         tokenizer = load_tokenizer(data.tokenizer_path)
-        train_dataset = CausalLMDataset(build_blocks(data.train, tokenizer, block_size))
+        train_dataset = CausalLMDataset(build_blocks(train_dir, tokenizer, block_size))
 
     validation_dataset = None
-    if Path(data.validation).exists():
+    if val_dir.exists():
         try:
-            if _is_tokenized(data.validation):
-                validation_dataset = ShardedMemmapDataset(data.validation, split="validation")
+            if _is_tokenized(str(val_dir)):
+                validation_dataset = ShardedMemmapDataset(val_dir, split="validation")
             else:
                 tokenizer = load_tokenizer(data.tokenizer_path)
-                validation_dataset = CausalLMDataset(
-                    build_blocks(data.validation, tokenizer, block_size)
-                )
+                validation_dataset = CausalLMDataset(build_blocks(val_dir, tokenizer, block_size))
         except (FileNotFoundError, ValueError):
             validation_dataset = None
     return train_dataset, validation_dataset
@@ -78,6 +86,12 @@ def _run(args: argparse.Namespace) -> int:
     block_size = config.model.max_position_embeddings
 
     train_dataset, validation_dataset = _build_datasets(config.data, block_size, dist)
+    if hasattr(train_dataset, "block_size") and train_dataset.block_size != block_size:
+        raise ValueError(
+            f"tokenized corpus block_size={train_dataset.block_size} != "
+            f"model.max_position_embeddings={block_size}; tokenize shards at "
+            "--block-size matching the model context"
+        )
 
     model = KothaGPT(config.model, gradient_checkpointing=config.training.gradient_checkpointing)
 

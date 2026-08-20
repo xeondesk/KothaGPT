@@ -121,7 +121,7 @@ Goal: a verified, reproducible GPU path from any clean machine.
 - Metric: `make gpu-verify` passes on a CUDA machine; the smoke run reports
   `device=cuda` and real throughput.
 
-### WS-5 — Small model দিয়ে test training (`ml/configs/smoke.yaml`)
+### WS-5 — Small model দিয়ে test training (`ml/configs/smoke.yaml`) — DONE
 
 Goal: prove the whole pipeline end-to-end before scaling.
 
@@ -134,6 +134,19 @@ Goal: prove the whole pipeline end-to-end before scaling.
   in a run sheet.
 - Metric: `make train-smoke` (CPU) completes and produces `history.jsonl`
   with a downward loss trend; exit non-zero on divergence.
+
+Status: **done** — `ml/configs/smoke.yaml` (hidden 192, layers 2, heads 4,
+ctx 512, no explicit vocab → auto-resolved to the frozen 16k tokenizer's
+16,000). Tokenized shards carry their `block_size` in the artifact dir name
+(`<corpus>-<tokdigest>-b<block>`), and the CLI hard-fails when a tokenized
+corpus `block_size` != `model.max_position_embeddings`. `make train-smoke`
+tokenizes at ctx 512 (`data-tokenize-smoke`) then trains on CPU.
+
+Baseline (production 16k corpus, `48245cff8e8e-c6900e009522-b512`,
+memmap dataset, cpu, 200 steps): start loss 9.47 → end loss 8.46,
+`val_loss=8.44 / val_ppl=4639` at step 200; below `ln(16000)=9.68` (random).
+Verified end-to-end: processed corpus → frozen tokenizer → tokenize-shards →
+`ShardedMemmapDataset` → KothaGPT forward/backward on CPU.
 
 ### WS-6 — Loss monitoring (`ml/trainer/monitor.py`)
 

@@ -26,7 +26,7 @@ _DATASET = "wikimedia/wikipedia"
 
 def _parquet_urls(config: str, split: str, limit: int | None) -> list[dict]:
     url = f"{_DATASETS_SERVER}?dataset={_DATASET}&config={config}&split={split}"
-    with urllib.request.urlopen(url, timeout=60) as resp:  # noqa: S310 - HF endpoint
+    with urllib.request.urlopen(url, timeout=60) as resp:
         data = json.loads(resp.read().decode("utf-8"))
     files = data.get("parquet_files", [])
     if limit:
@@ -50,7 +50,9 @@ def _write_jsonl(texts: list[str], out_file: Path, source: str) -> None:
             fh.write(json.dumps(record, ensure_ascii=False) + "\n")
 
 
-def fetch(config: str, split: str, out_dir: Path, limit: int | None, records_per_file: int) -> list[str]:
+def fetch(
+    config: str, split: str, out_dir: Path, limit: int | None, records_per_file: int
+) -> list[str]:
     out_dir.mkdir(parents=True, exist_ok=True)
     files = _parquet_urls(config, split, limit)
     if not files:
@@ -62,7 +64,7 @@ def fetch(config: str, split: str, out_dir: Path, limit: int | None, records_per
         shard = entry["url"].rsplit("/", 1)[-1].rsplit(".", 1)[0]
         print(f"[{i}/{len(files)}] {shard} ({entry.get('size', 0) // 1048576} MB) ...", flush=True)
         tmp = Path("/tmp") / f"wiki-{shard}.parquet"
-        urllib.request.urlretrieve(url, tmp)  # noqa: S310 - HF endpoint
+        urllib.request.urlretrieve(url, tmp)
         texts = _extract_text_parquet(tmp)
         tmp.unlink(missing_ok=True)
         for start in range(0, len(texts), records_per_file):
@@ -93,7 +95,10 @@ def main(argv: list[str] | None = None) -> int:
         )
     except ModuleNotFoundError as exc:
         if exc.name == "pyarrow":
-            print("fetch_wikipedia requires pyarrow: uv venv /tmp/corpus-venv && uv pip install pyarrow", file=sys.stderr)
+            print(
+                "fetch_wikipedia requires pyarrow: uv venv /tmp/corpus-venv && uv pip install pyarrow",
+                file=sys.stderr,
+            )
         raise
     print(f"Done. {len(written)} JSONL file(s) written under {args.out_dir}.")
     return 0

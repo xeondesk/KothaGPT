@@ -79,8 +79,7 @@ def test_suite_runs_all_tasks_with_mock_target(task):
     summary = results["summary"][task]
     assert summary["instances"] > 0
     assert any(
-        key in summary["metrics"]
-        for key in ("exact_match", "rouge1", "bengali_script_ratio")
+        key in summary["metrics"] for key in ("exact_match", "rouge1", "bengali_script_ratio")
     )
 
 

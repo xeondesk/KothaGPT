@@ -30,7 +30,7 @@ export default function Home() {
   return (
     <main className="min-h-svh">
       <nav className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-        <span className="text-lg font-semibold tracking-tight">Own AI</span>
+        <span className="text-lg font-semibold tracking-tight">Kotha GPT</span>
         <div className="flex items-center gap-4 text-sm">
           <Link href="/dashboard/models" className="text-muted-foreground hover:text-foreground">
             Models
@@ -49,7 +49,7 @@ export default function Home() {
           Bangla-first AI, in your hands.
         </h1>
         <p className="mt-6 max-w-xl text-lg text-muted-foreground">
-          Own AI is the platform for building, training and deploying Bengali
+          Kotha GPT is the platform for building, training and deploying Bengali
           and English language models — from dataset to deployment.
         </p>
         <div className="mt-8 flex gap-3">

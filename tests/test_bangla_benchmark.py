@@ -43,7 +43,9 @@ def test_task_meets_plan_minimum(dataset, task, minimum):
 def test_generated_matches_committed_v1(task, dataset):
     if not (V1 / f"{task}.jsonl").exists():
         pytest.skip("v1 JSONL not committed in this checkout")
-    committed = [json.loads(line) for line in (V1 / f"{task}.jsonl").read_text(encoding="utf-8").splitlines()]
+    committed = [
+        json.loads(line) for line in (V1 / f"{task}.jsonl").read_text(encoding="utf-8").splitlines()
+    ]
     assert len(committed) == len(dataset[task])
     assert [r["record_id"] for r in committed] == [r["record_id"] for r in dataset[task]]
 

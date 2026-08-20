@@ -85,7 +85,9 @@ def _build_parser() -> argparse.ArgumentParser:
         "freeze",
         help="Retrain on the normalized corpus and freeze tokenizer + vocab (WS-1/WS-6).",
     )
-    freeze_p.add_argument("--corpus", required=True, help="corpus dir or file (processed train shards)")
+    freeze_p.add_argument(
+        "--corpus", required=True, help="corpus dir or file (processed train shards)"
+    )
     freeze_p.add_argument("--algorithm", choices=("bpe", "unigram"), default="bpe")
     freeze_p.add_argument("--vocab-size", type=int, default=16000)
     freeze_p.add_argument("--min-frequency", type=int, default=1)
@@ -212,7 +214,9 @@ def _write_report(out_root: Path, rows: list[dict], best: dict) -> None:
     )
     lines.append("")
     lines.append("## Overall (average across test sets)")
-    lines.append("| algorithm | target vocab | actual vocab | tokens/char | unk rate | fidelity | best |")
+    lines.append(
+        "| algorithm | target vocab | actual vocab | tokens/char | unk rate | fidelity | best |"
+    )
     lines.append("| --- | --- | --- | --- | --- | --- | --- |")
     for row in rows:
         marker = " *" if row is best else ""
@@ -222,7 +226,17 @@ def _write_report(out_root: Path, rows: list[dict], best: dict) -> None:
             f"| {row['min_decode_fidelity']:.0%} | {marker} |"
         )
     lines.append("")
-    names = ["bangla", "mixed", "punctuation", "translit", "digits", "names", "emoji", "code", "social"]
+    names = [
+        "bangla",
+        "mixed",
+        "punctuation",
+        "translit",
+        "digits",
+        "names",
+        "emoji",
+        "code",
+        "social",
+    ]
     names = [n for n in names if n in rows[0]["per_set"]]
     lines.append("## Per test set (tokens/char)")
     lines.append("| algorithm | vocab | " + " | ".join(names) + " |")
@@ -444,8 +458,10 @@ def _write_freeze_reports(
         f"- **version**: `{version_id(digest, export_vocab(tokenizer))}`",
         f"- **algorithm**: `{args.algorithm}`",
         f"- **vocab**: {len(tokenizer.vocab):,} (target {args.vocab_size:,})",
-        f"- **corpus docs**: {corpus_docs:,} (training sample: {train_docs:,}, "
-        f"stride {args.sample_stride})",
+        (
+            f"- **corpus docs**: {corpus_docs:,} (training sample: {train_docs:,} "
+            f"stride {args.sample_stride})"
+        ),
         f"- **corpus digest**: `{digest}`",
         f"- **coverage**: {coverage['coverage']:.2%} (unk {coverage['unk_rate']:.2%})",
         "",
@@ -467,27 +483,35 @@ def _write_freeze_reports(
     decision_lines = [
         "# Decision — Tokenizer & Vocabulary Freeze",
         "",
-        f"- **date**: {_dt.datetime.now().isoformat(timespec='seconds')}",
+        f"- **date**: {_dt.datetime.now(_dt.UTC).isoformat(timespec='seconds')}",
         f"- **algorithm**: `{args.algorithm}` (vocab {args.vocab_size:,})",
         f"- **corpus digest**: `{digest}`",
         "",
         "## Why this tokenizer/vocab",
         "",
-        f"- Trained on the normalized Bangla corpus "
-        f"({train_docs:,} docs of {corpus_docs:,}, stride {args.sample_stride}).",
-        f"- Coverage: **{coverage['coverage']:.2%}** of script characters on a "
-        f"{args.coverage_docs:,}-doc sample; unk rate {coverage['unk_rate']:.2%}.",
-        f"- Efficiency gate passes: tpc {benchmark['avg_tokens_per_char']:.4f} "
-        f"(<= {GATE_THRESHOLDS['max_avg_tokens_per_char']}), "
-        f"unk {benchmark['dev_max_unk_rate']:.2%} "
-        f"(<= {GATE_THRESHOLDS['max_dev_unk_rate']}), "
-        f"fidelity {benchmark['dev_min_decode_fidelity']:.0%} "
-        f"(>= {GATE_THRESHOLDS['min_dev_decode_fidelity']}).",
+        (
+            f"- Trained on the normalized Bangla corpus "
+            f"({train_docs:,} docs of {corpus_docs:,} with stride {args.sample_stride})."
+        ),
+        (
+            f"- Coverage: **{coverage['coverage']:.2%}** of script characters on a "
+            f"{args.coverage_docs:,}-doc sample; unk rate {coverage['unk_rate']:.2%}."
+        ),
+        (
+            f"- Efficiency gate passes: tpc {benchmark['avg_tokens_per_char']:.4f} "
+            f"(<= {GATE_THRESHOLDS['max_avg_tokens_per_char']}), "
+            f"unk {benchmark['dev_max_unk_rate']:.2%} "
+            f"(<= {GATE_THRESHOLDS['max_dev_unk_rate']}), "
+            f"fidelity {benchmark['dev_min_decode_fidelity']:.0%} "
+            f"(>= {GATE_THRESHOLDS['min_dev_decode_fidelity']})."
+        ),
         "",
         "## Open questions",
         "",
-        "- Compare against sentencepiece / tokenizers reference baselines on the "
-        "same corpus (dev-only dependency) and record the numbers here.",
+        (
+            "- Compare against sentencepiece / tokenizers reference baselines on the "
+            "same corpus (dev-only dependency) and record the numbers here."
+        ),
         "- Re-freeze at 32k / 50k vocab sizes once the 16k baseline is stable.",
         "",
     ]

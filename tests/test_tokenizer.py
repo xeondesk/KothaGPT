@@ -291,6 +291,7 @@ def test_load_corpus_jsonl(tmp_path):
 
 # --- WS-1 / WS-6 vocabulary freeze ----------------------------------------
 
+
 def test_corpus_digest_is_content_addressed():
     from ml.tokenizer import corpus_digest
 

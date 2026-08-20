@@ -51,20 +51,11 @@ def iter_records(source: Path) -> Iterator[dict[str, Any]]:
                 yield {"id": str(uuid.uuid5(uuid.NAMESPACE_URL, rel)), "text": text, "source": rel}
         elif path.name.endswith(".jsonl.gz") or path.suffix.lower() == ".jsonl":
             if path.name.endswith(".jsonl.gz"):
-                fh = gzip.open(path, "rt", encoding="utf-8")  # type: ignore[assignment]
+                with gzip.open(path, "rt", encoding="utf-8") as fh:  # type: ignore[assignment]
+                    yield from _iter_jsonl(fh, rel)
             else:
-                fh = path.open(encoding="utf-8")
-            with fh:
-                for lineno, line in enumerate(fh, 1):
-                    line = line.strip()
-                    if not line:
-                        continue
-                    record = json.loads(line)
-                    if "text" not in record:
-                        raise ValueError(f"{rel}:{lineno}: missing 'text' field")
-                    record.setdefault("source", rel)
-                    record.setdefault("id", str(uuid.uuid4()))
-                    yield record
+                with path.open(encoding="utf-8") as fh:
+                    yield from _iter_jsonl(fh, rel)
         elif path.suffix.lower() == ".json":
             data = json.loads(_read_text_file(path))
             if not isinstance(data, list):
@@ -75,6 +66,19 @@ def iter_records(source: Path) -> Iterator[dict[str, Any]]:
                 record.setdefault("source", rel)
                 record.setdefault("id", str(uuid.uuid4()))
                 yield record
+
+
+def _iter_jsonl(fh, rel: str):
+    for lineno, line in enumerate(fh, 1):
+        line = line.strip()
+        if not line:
+            continue
+        record = json.loads(line)
+        if "text" not in record:
+            raise ValueError(f"{rel}:{lineno}: missing 'text' field")
+        record.setdefault("source", rel)
+        record.setdefault("id", str(uuid.uuid4()))
+        yield record
 
 
 def _open_shard(path: Path, gzip_output: bool):

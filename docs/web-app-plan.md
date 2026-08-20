@@ -1,7 +1,7 @@
 # Web App — Implementation Plan (apps/web)
 
 Goal: build `apps/web` — a Next.js application that ships both the public
-marketing site and the "Own AI" control center (dashboard). The dashboard
+marketing site and the "Kotha GPT" control center (dashboard). The dashboard
 manages models, datasets, training, evaluations, RAG, agents, tools, API keys,
 usage, and settings — with the streaming Chat UI as the first production
 feature.
@@ -181,7 +181,7 @@ apps/web/
 
 ```text
 ┌─────────────────────────────────────────────────────────┐
-│ Own AI                         Search       User         │
+│ Kotha GPT                         Search       User         │
 ├──────────────┬──────────────────────────────────────────┤
 │ Dashboard    │                                          │
 │ Chat         │  Overview                                │

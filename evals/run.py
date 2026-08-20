@@ -19,7 +19,6 @@ from __future__ import annotations
 import argparse
 import datetime as _dt
 import json
-import sys
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -43,6 +42,7 @@ _SCORERS: dict[str, Callable[[str, str], dict[str, float]]] = {
     "bangla_summarization": lambda p, r: {**rouge(p, r)},
     "bangla_generation": lambda p, r: {},
 }
+
 
 # Task -> callable(prediction) -> dict[str, float] (language quality, all tasks).
 def _lang_metrics(prediction: str) -> dict[str, float]:
@@ -157,7 +157,7 @@ def run_suite(
         "suite": name,
         "target": type(target).__name__.lower().removesuffix("target"),
         "split": split,
-        "date": _dt.date.today().isoformat(),
+        "date": _dt.datetime.now(_dt.UTC).date().isoformat(),
         "summary": summary,
         "tasks": {task: scored for task, scored in per_task.items()},
     }
@@ -210,9 +210,7 @@ def main(argv: list[str] | None = None) -> int:
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     json_path = out_dir / f"{results['date']}-{args.name}.json"
-    json_path.write_text(
-        json.dumps(results, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
-    )
+    json_path.write_text(json.dumps(results, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(f"wrote {json_path}")
     report_path = out_dir / f"{results['date']}-{args.name}.REPORT.md"
     report_path.write_text(_render_report(results), encoding="utf-8")

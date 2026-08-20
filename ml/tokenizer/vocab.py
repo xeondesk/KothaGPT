@@ -14,9 +14,9 @@ import json
 from pathlib import Path
 from typing import Any
 
-from .base import UNK, _WORD_MARKER, BaseTokenizer
+from .base import _WORD_MARKER, UNK, BaseTokenizer
 
-__all__ = ["VOCAB_VERSION", "coverage_report", "corpus_digest", "export_vocab", "version_id"]
+__all__ = ["VOCAB_VERSION", "corpus_digest", "coverage_report", "export_vocab", "version_id"]
 
 VOCAB_VERSION = "1.0.0"
 
@@ -30,7 +30,7 @@ def corpus_digest(texts: list[str]) -> str:
     for text in texts:
         h.update(text.encode("utf-8"))
         h.update(b"\x00")
-    return h.hexdigest()[: _CORPUS_DIGEST_LEN]
+    return h.hexdigest()[:_CORPUS_DIGEST_LEN]
 
 
 def export_vocab(tokenizer: BaseTokenizer) -> dict[str, int]:
@@ -64,9 +64,7 @@ def coverage_report(tokenizer: BaseTokenizer, texts: list[str]) -> dict[str, Any
         # merged token), so subtract one marker char per word from the "known"
         # char count.
         markers = sum(tok.count(_WORD_MARKER) for tok in token_strings if tok != UNK)
-        known_chars += (
-            sum(len(tok) for tok in token_strings if tok != UNK) - markers
-        )
+        known_chars += sum(len(tok) for tok in token_strings if tok != UNK) - markers
     coverage = known_chars / chars if chars else 0.0
     return {
         "coverage": coverage,
@@ -80,7 +78,7 @@ def coverage_report(tokenizer: BaseTokenizer, texts: list[str]) -> dict[str, Any
 def version_id(corpus: str, vocab: dict[str, int]) -> str:
     """Return ``MAJOR.MINOR.PATCH+<corpus>.<vocab>`` for a frozen vocab."""
     digest = hashlib.sha256(json.dumps(vocab, ensure_ascii=False, sort_keys=True).encode("utf-8"))
-    return f"{VOCAB_VERSION}+{corpus}.{digest.hexdigest()[: _DIGEST_LEN]}"
+    return f"{VOCAB_VERSION}+{corpus}.{digest.hexdigest()[:_DIGEST_LEN]}"
 
 
 def _write_vocab_files(
@@ -124,7 +122,9 @@ def _render_vocab_md(meta: dict[str, Any], vocab: dict[str, int]) -> str:
     lines = ["# Vocabulary", ""]
     lines.append(f"- version: `{meta['version']}`")
     lines.append(f"- algorithm: `{meta['algorithm']}`")
-    lines.append(f"- vocab size: {meta['actual_vocab_size']:,} (target {meta['target_vocab_size']:,})")
+    lines.append(
+        f"- vocab size: {meta['actual_vocab_size']:,} (target {meta['target_vocab_size']:,})"
+    )
     lines.append(f"- corpus digest: `{meta['corpus_digest']}`")
     lines.append(f"- coverage: {meta['coverage']['coverage']:.2%}")
     lines.append("")
@@ -179,5 +179,5 @@ def _render_vocab_report(meta: dict[str, Any]) -> str:
                 ("dev min compression vs char", "dev_min_compression_vs_char", 1.0, "min"),
             )
         ]
-        + ["", f"Benchmark report: `ml/tokenizer/artifacts/benchmark.json`"]
+        + ["", "Benchmark report: `ml/tokenizer/artifacts/benchmark.json`"]
     )

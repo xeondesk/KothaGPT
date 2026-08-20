@@ -35,7 +35,7 @@ export function Header() {
       </Sheet>
 
       <Link href="/dashboard" className="flex items-center gap-2">
-        <span className="text-sm font-semibold tracking-tight">Own AI</span>
+        <span className="text-sm font-semibold tracking-tight">Kotha GPT</span>
       </Link>
 
       <div className="flex-1" />

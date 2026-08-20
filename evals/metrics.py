@@ -55,7 +55,7 @@ def normalize_answer(text: str) -> str:
     """Lowercase, NFC-normalize, and collapse whitespace for comparison."""
     text = unicodedata.normalize("NFC", text or "")
     text = " ".join(text.lower().split())
-    return text.strip(" .।,;:!?()[]{}\"")
+    return text.strip(' .।,;:!?()[]{}"')
 
 
 def exact_match(prediction: str, reference: str) -> float:

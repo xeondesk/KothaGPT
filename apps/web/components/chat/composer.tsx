@@ -40,7 +40,7 @@ export function ChatComposer({
             ref={ref}
             value={value}
             rows={1}
-            placeholder="Message Own AI… (এখানে টাইপ করুন)"
+            placeholder="Message Kotha GPT… (এখানে টাইপ করুন)"
             className="min-h-[44px] resize-none pr-12 py-3"
             onChange={(e) => setValue(e.target.value)}
             onKeyDown={(e) => {
@@ -71,7 +71,7 @@ export function ChatComposer({
           )}
         </div>
         <p className="text-center text-xs text-muted-foreground">
-          Own AI can make mistakes. Verify important information.
+          Kotha GPT can make mistakes. Verify important information.
         </p>
       </div>
     </div>

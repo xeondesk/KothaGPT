@@ -5,8 +5,8 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: {
-    default: "Own AI",
-    template: "%s · Own AI",
+    default: "Kotha GPT",
+    template: "%s · Kotha GPT",
   },
   description: "Bangla-first AI platform — models, datasets, training, evaluation, RAG and agents.",
 };

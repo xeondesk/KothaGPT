@@ -81,7 +81,7 @@ MANIFEST are in place (`make data-tokenize`); the current corpus is small
 enough to be a single training shard per split, so the fixed-size ~1–2 GB
 chunking/regrouping step is deferred until the corpus grows past that.
 
-### WS-3 — Data loader optimize করা (`ml/trainer/dataset.py`)
+### WS-3 — Data loader optimize করা (`ml/trainer/dataset.py`) — DONE
 
 Goal: keep GPU fed at scale without blowing up RAM.
 
@@ -96,6 +96,16 @@ Goal: keep GPU fed at scale without blowing up RAM.
   at runtime (blocks pre-tokenized by WS-1).
 - Metric: a 2-worker CPU run over 1 GB of tokenized shards uses < 4 GB RSS and
   matches the eager-loader step order at the same seed.
+
+Status: **done** — `ShardedMemmapDataset` in `ml/trainer/dataset.py` maps each
+assigned `.bin` with `np.memmap` (read-only, lazy), assigns disjoint shards
+per rank (round-robin) for distributed runs, and returns the same causal-shift
+`(input_ids, labels)` API. `ml/trainer/cli.py` auto-selects it when
+`data.train`/`data.validation` point at a tokenized corpus (MANIFEST present),
+else falls back to eager `build_blocks`. Tests in `tests/test_loader_memmap.py`
+(eager-order equivalence, rank disjointness/coverage, causal shift, memmap
+backing, split errors) wired into CI. Real corpus verified: 17,157 train
+blocks load with rank sharding `13,452 / 3,705` across 2 ranks.
 
 ### WS-4 — GPU training environment তৈরি (`infra/`, `Makefile`)
 

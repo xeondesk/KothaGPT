@@ -10,10 +10,49 @@ from pathlib import Path
 from ml.models import KothaGPT, load_config
 from ml.tokenizer import load_tokenizer
 
-from .dataset import CausalLMDataset, build_blocks
+from .dataset import CausalLMDataset, ShardedMemmapDataset, build_blocks
 from .distributed import DistributedConfig, destroy_distributed, init_distributed, unwrap_module
 from .evaluate import sample_text
 from .loop import train
+
+
+def _is_tokenized(path: str) -> bool:
+    return (Path(path) / "MANIFEST.json").is_file()
+
+
+def _build_datasets(data, block_size: int, dist: DistributedConfig) -> tuple:
+    """Build train/validation datasets, preferring the WS-1 tokenized shards.
+
+    When ``data.train`` points at a tokenized corpus (has MANIFEST.json) a
+    memmap-backed :class:`ShardedMemmapDataset` is used with per-rank shard
+    assignment; otherwise the eager ``build_blocks`` path is kept.
+    """
+    from pathlib import Path
+
+    rank = dist.rank if dist.distributed else None
+    world_size = dist.world_size if dist.distributed else None
+
+    if _is_tokenized(data.train):
+        train_dataset = ShardedMemmapDataset(
+            data.train, split="train", rank=rank, world_size=world_size
+        )
+    else:
+        tokenizer = load_tokenizer(data.tokenizer_path)
+        train_dataset = CausalLMDataset(build_blocks(data.train, tokenizer, block_size))
+
+    validation_dataset = None
+    if Path(data.validation).exists():
+        try:
+            if _is_tokenized(data.validation):
+                validation_dataset = ShardedMemmapDataset(data.validation, split="validation")
+            else:
+                tokenizer = load_tokenizer(data.tokenizer_path)
+                validation_dataset = CausalLMDataset(
+                    build_blocks(data.validation, tokenizer, block_size)
+                )
+        except (FileNotFoundError, ValueError):
+            validation_dataset = None
+    return train_dataset, validation_dataset
 
 
 def _run(args: argparse.Namespace) -> int:
@@ -38,16 +77,7 @@ def _run(args: argparse.Namespace) -> int:
     tokenizer = load_tokenizer(config.data.tokenizer_path)
     block_size = config.model.max_position_embeddings
 
-    train_blocks = build_blocks(config.data.train, tokenizer, block_size)
-    train_dataset = CausalLMDataset(train_blocks)
-    validation_dataset = None
-    if Path(config.data.validation).exists():
-        try:
-            validation_dataset = CausalLMDataset(
-                build_blocks(config.data.validation, tokenizer, block_size)
-            )
-        except (FileNotFoundError, ValueError):
-            validation_dataset = None
+    train_dataset, validation_dataset = _build_datasets(config.data, block_size, dist)
 
     model = KothaGPT(config.model, gradient_checkpointing=config.training.gradient_checkpointing)
 
@@ -93,14 +123,22 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--max-steps", type=int, default=None, help="override max steps")
     run.add_argument("--resume", action="store_true", help="resume from latest checkpoint")
     run.add_argument("--distributed", action="store_true", help="enable distributed training")
-    run.add_argument("--world-size", type=int, default=None, help="number of ranks (default from WORLD_SIZE)")
-    run.add_argument("--rank", type=int, default=None, help="rank of this process (default from RANK)")
-    run.add_argument("--local-rank", type=int, default=None, help="local rank (default from LOCAL_RANK)")
+    run.add_argument(
+        "--world-size", type=int, default=None, help="number of ranks (default from WORLD_SIZE)"
+    )
+    run.add_argument(
+        "--rank", type=int, default=None, help="rank of this process (default from RANK)"
+    )
+    run.add_argument(
+        "--local-rank", type=int, default=None, help="local rank (default from LOCAL_RANK)"
+    )
     run.add_argument("--master-addr", default="127.0.0.1", help="master address")
     run.add_argument("--master-port", default="29500", help="master port")
     run.add_argument("--backend", default=None, help="distributed backend (nccl|gloo)")
     run.add_argument("--init-method", default=None, help="torch.distributed init method URL")
-    run.add_argument("--use-fsdp", action="store_true", help="use FSDP instead of DDP (requires CUDA)")
+    run.add_argument(
+        "--use-fsdp", action="store_true", help="use FSDP instead of DDP (requires CUDA)"
+    )
     run.set_defaults(func=_run)
 
     args = parser.parse_args(argv)

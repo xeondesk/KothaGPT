@@ -42,3 +42,5 @@ jobs:
         run: make test
       - name: Tokenize shards (WS-1/2)
         run: python -m pytest tests/test_tokenize_shards.py
+      - name: Memmap loader (WS-3)
+        run: python -m pytest tests/test_loader_memmap.py

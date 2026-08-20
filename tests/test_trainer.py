@@ -78,6 +78,8 @@ def test_train_writes_history_and_checkpoint(config, tokenizer, tmp_path: Path) 
     lines = [json.loads(l) for l in (out / "history.jsonl").read_text(encoding="utf-8").strip().splitlines()]
     assert any("loss" in line for line in lines)
     assert any("lr" in line for line in lines)
+    assert (out / "lr_curve.csv").exists()
+    assert (out / "lr_curve.svg").exists()
     assert latest_checkpoint(out) is not None
 
 

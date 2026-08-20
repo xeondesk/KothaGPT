@@ -231,7 +231,7 @@ Goal: never lose a run to a node failure or a reprioritized GPU.
 - Metric: resume-from-step-N then stepping twice equals a from-scratch run
   stepped to N+2 at the same seed (bf16 tolerance); `--fresh` starts over.
 
-### WS-10 — Learning-rate scheduling (`ml/trainer/scheduler.py`)
+### WS-10 — Learning-rate scheduling (`ml/trainer/scheduler.py`) — DONE
 
 Goal: stable, well-behaved LR curves.
 
@@ -243,7 +243,7 @@ Goal: stable, well-behaved LR curves.
   produces the documented curve; LR is logged per macro-step (already true).
 - Deliverables: config fields, decay variants, curve plot.
 
-### WS-11 — Long-context training (`ml/configs/long.yaml`)
+### WS-11 — Long-context training (`ml/configs/long.yaml`) — DONE
 
 Goal: train and evaluate beyond the 4096-token default.
 

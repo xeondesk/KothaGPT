@@ -25,7 +25,7 @@ from .dataset import CausalLMDataset
 from .distributed import DistributedConfig, all_reduce_mean, is_main_rank, unwrap_module, wrap_model
 from .evaluate import sample_text
 from .monitor import Monitor
-from .scheduler import build_scheduler, group_parameters
+from .scheduler import build_scheduler, group_parameters, write_schedule_curve
 
 
 class TrainingDiverged(RuntimeError):
@@ -118,6 +118,9 @@ def train(
 
     optimizer = _make_optimizer(model, training)
     scheduler = build_scheduler(optimizer, training)
+
+    if is_main_rank(rank):
+        write_schedule_curve(training, out_dir)
 
     if resume_from is not None and latest_checkpoint(resume_from) is not None:
         start_step = resume(

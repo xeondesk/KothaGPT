@@ -8,6 +8,7 @@ import { datasetsApi } from "@/lib/api/datasets";
 import { trainingApi } from "@/lib/api/training";
 import { knowledgeApi } from "@/lib/api/knowledge";
 import { agentsApi } from "@/lib/api/agents";
+import { evaluationsApi } from "@/lib/api/evaluations";
 import type { TrainingJob } from "@/types/training";
 
 export function useMe() {
@@ -132,6 +133,30 @@ export function useKnowledgeBases() {
 
 export function useAgents() {
   return useQuery({ queryKey: ["agents"], queryFn: agentsApi.list });
+}
+
+export function useEvaluations() {
+  return useQuery({ queryKey: ["evaluations"], queryFn: evaluationsApi.list });
+}
+
+export function useBenchmarks() {
+  return useQuery({ queryKey: ["benchmarks"], queryFn: evaluationsApi.benchmarks });
+}
+
+export function useCreateEvaluation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: evaluationsApi.create,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["evaluations"] }),
+  });
+}
+
+export function useDeleteEvaluation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: evaluationsApi.remove,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["evaluations"] }),
+  });
 }
 
 export function useSetActiveModel() {

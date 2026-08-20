@@ -336,6 +336,19 @@ def test_coverage_report_full_coverage_on_seen_text(corpus):
     assert report["coverage"] == 1.0
 
 
+def test_coverage_report_whitespace_not_penalized(corpus):
+    from ml.tokenizer import coverage_report
+
+    tokenizer = train_bpe(corpus, vocab_size=400, min_frequency=1)
+    # Newlines / tabs are encoded as word-marker tokens (not script chars), so
+    # they must not depress coverage. Regression for the 98.5%-vs-100% gap that
+    # was caused by counting U+000A in the denominator.
+    lines = [corpus[0], corpus[1], corpus[2]]
+    single = coverage_report(tokenizer, lines)
+    multi = coverage_report(tokenizer, ["\n".join(lines)])
+    assert single["coverage"] == multi["coverage"] == 1.0
+
+
 def test_export_vocab_matches_tokenizer(corpus):
     from ml.tokenizer import export_vocab
 

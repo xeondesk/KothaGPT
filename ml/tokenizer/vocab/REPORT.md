@@ -6,9 +6,9 @@
 - **corpus digest**: `7bf1a6e740e3`
 
 ## Coverage
-- coverage: **98.48%**
+- coverage: **100.00%**
 - unk rate: **0.00%**
-- tokens/char: **0.2688**
+- tokens/char: **0.2729**
 
 ## Efficiency benchmark
 - avg tokens/char: **0.3361**

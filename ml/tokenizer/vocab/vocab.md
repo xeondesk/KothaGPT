@@ -4,7 +4,7 @@
 - algorithm: `bpe`
 - vocab size: 16,000 (target 16,000)
 - corpus digest: `7bf1a6e740e3`
-- coverage: 98.48%
+- coverage: 100.00%
 
 ## Top 200 tokens
 | id | token |

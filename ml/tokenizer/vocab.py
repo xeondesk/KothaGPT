@@ -57,8 +57,10 @@ def coverage_report(tokenizer: BaseTokenizer, texts: list[str]) -> dict[str, Any
         tokens += len(ids)
         unk += sum(1 for i in ids if i == tokenizer.unk_id)
         # Whitespace is encoded as word-marker tokens (restored on decode), so
-        # coverage measures the script characters proper.
-        chars += len(text.replace(" ", ""))
+        # coverage measures the script characters proper. Exclude *all*
+        # whitespace (spaces, newlines, tabs) from the denominator, not just
+        # U+0020.
+        chars += sum(1 for c in text if not c.isspace())
         token_strings = tokenizer.tokenize(text)
         # Every word is prefixed with one word-marker char (often embedded in a
         # merged token), so subtract one marker char per word from the "known"

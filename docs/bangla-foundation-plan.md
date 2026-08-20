@@ -239,10 +239,11 @@ Remaining:
 
 - **Done (2026-08-20):** production 16k BPE freeze on the normalized Bangla
   Wikipedia corpus (133,275 docs; stride-4 sample) → `ml/tokenizer/vocab/`
-  version `1.0.0+7bf1a6e740e3.5d53c485`, 98.48% script-char coverage, 0% unk,
+  version `1.0.0+7bf1a6e740e3.5d53c485`, **100% script-char coverage**, 0% unk,
   tpc 0.3361, decode fidelity 100% (gate passed). 32k/50k re-freezes done as
   reference points and recorded in `ml/tokenizer/DECISION.md` (tpc 0.279 /
   0.272, all gates pass); 16k remains the canonical production vocab.
   sentencepiece 16k reference baseline measured (dev tpc 0.2814 vs 0.2991) and
-  recorded in `ml/tokenizer/DECISION.md`.
+  recorded in `ml/tokenizer/DECISION.md`. Coverage metric fixed to ignore
+  whitespace (newlines were artificially depressing it to ~98.5%).
 - Re-check 32k/50k sentencepiece reference points if desired (optional).

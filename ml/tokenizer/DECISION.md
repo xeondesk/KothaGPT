@@ -23,6 +23,14 @@ of a heavier embedding table and slower sampling; coverage is flat. The 16k
 vocab is kept as the canonical production vocab (committed under
 `ml/tokenizer/vocab/`); 32k/50k runs are reference points.
 
+## Reference baseline (dev-only)
+
+`sentencepiece` 16k BPE, trained on a 5,000-doc subsample of the same corpus
+(its own normalization), measured on the same gated dev sets:
+`tokens/char` **0.2814** vs pure-stdlib 16k **0.2991** (~6% gap). The pure-stdlib
+tokenizer stays canonical: no compiled dependency, word-marker + translit
+pipelines are preserved, and all gates (unk, decode fidelity, coverage) pass.
+
 ## Open questions
 
-- Compare against sentencepiece / tokenizers reference baselines on the same corpus (dev-only dependency) and record the numbers here.
+- Evaluate sentencepiece at 32k/50k for a full-reference comparison (optional).

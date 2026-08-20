@@ -243,5 +243,6 @@ Remaining:
   tpc 0.3361, decode fidelity 100% (gate passed). 32k/50k re-freezes done as
   reference points and recorded in `ml/tokenizer/DECISION.md` (tpc 0.279 /
   0.272, all gates pass); 16k remains the canonical production vocab.
-- Compare against sentencepiece/tokenizers reference baselines (dev-only) and
-  record them in `DECISION.md`.
+  sentencepiece 16k reference baseline measured (dev tpc 0.2814 vs 0.2991) and
+  recorded in `ml/tokenizer/DECISION.md`.
+- Re-check 32k/50k sentencepiece reference points if desired (optional).

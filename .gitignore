@@ -47,6 +47,8 @@ data/processed/*
 !data/processed/.gitkeep
 !data/processed/README.md
 ml/tokenizer/artifacts/
+ml/pretrain/artifacts/
+data/tokenized/
 models/
 checkpoints/
 

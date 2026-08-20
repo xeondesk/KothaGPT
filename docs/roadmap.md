@@ -25,12 +25,12 @@
 - [x] checkpointing
 
 ## Phase 4 — Alignment
-- [ ] SFT
-- [ ] preference tuning
+- [ ] SFT (`docs/sft-plan.md`)
+- [ ] preference tuning (`docs/preference-plan.md`)
 - [ ] safety
 
 ## Phase 5 — Runtime
-- [ ] inference API
+- [ ] inference API (`docs/runtime-plan.md`)
 - [ ] streaming
 - [ ] quantization
 - [ ] model registry

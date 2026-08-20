@@ -231,7 +231,7 @@ TODO:
 - SSE streaming (`POST /v1/chat`, SSE stream back)
 - Model selector, temperature, max tokens, system prompt
 - Markdown + code blocks, copy, regenerate, edit message, stop generation
-- Attachments, web search, RAG, tool-call visualization
+- Attachments / file upload, web search, RAG interface, agent interface, tool-call visualization
 - Citations, token usage, latency
 
 ### Sprint 3 — Models
@@ -279,6 +279,7 @@ TODO:
   tools, JSON mode, streaming, token counter, latency, save prompt, compare models,
   export API code)
 - Usage analytics (requests, tokens in/out, latency, errors, model/agent/RAG/API usage)
+- Token monitoring (per-request and cumulative token counters, cost estimate)
 - SDK examples
 
 ---

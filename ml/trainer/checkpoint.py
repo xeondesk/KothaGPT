@@ -41,13 +41,42 @@ def metadata_for(
     tokenizer_path: str | Path,
 ) -> dict[str, Any]:
     tokenizer = load_tokenizer(tokenizer_path)
+    train_path = Path(config.data.train)
+    validation_path = Path(config.data.validation)
+    train_digest = _dir_digest(train_path)
+    validation_digest = _dir_digest(validation_path)
+    run_id = hashlib.sha256(
+        json.dumps(
+            {
+                "config_digest": config_digest(config),
+                "data_train": train_digest,
+                "data_validation": validation_digest,
+            },
+            sort_keys=True,
+        ).encode()
+    ).hexdigest()[:16]
+    data_version = _data_version(train_path)
     return {
+        "run_id": run_id,
+        "data_version": data_version,
+        "shard_offset": 0,
         "config_digest": config_digest(config),
         "tokenizer_version": tokenizer.type,
         "tokenizer_digest": _sha256_file(Path(tokenizer_path)),
-        "data_train_digest": _dir_digest(Path(config.data.train)),
-        "data_validation_digest": _dir_digest(Path(config.data.validation)),
+        "data_train_digest": train_digest,
+        "data_validation_digest": validation_digest,
     }
+
+
+def _data_version(train_path: Path) -> str:
+    """Corpus version from a tokenized MANIFEST, else the train-dir digest."""
+    manifest = train_path / "MANIFEST.json"
+    if manifest.is_file():
+        try:
+            return json.loads(manifest.read_text(encoding="utf-8"))["corpus_version"]
+        except (json.JSONDecodeError, KeyError):
+            pass
+    return _dir_digest(train_path)
 
 
 def _checkpoint_payload(
@@ -59,7 +88,7 @@ def _checkpoint_payload(
     config: BaseModelConfig,
     metadata: dict[str, Any],
 ) -> dict[str, Any]:
-    return {
+    payload: dict[str, Any] = {
         "step": step,
         "model_state": model.state_dict(),
         "optimizer_state": optimizer.state_dict(),
@@ -67,6 +96,11 @@ def _checkpoint_payload(
         "config": config,
         "metadata": metadata,
     }
+    rng_state = torch.get_rng_state()
+    if torch.cuda.is_available():
+        payload["cuda_rng_state"] = torch.cuda.get_rng_state_all()
+    payload["rng_state"] = rng_state
+    return payload
 
 
 def _atomic_save(payload: dict[str, Any], path: Path) -> None:
@@ -194,4 +228,8 @@ def resume(
     optimizer.load_state_dict(state["optimizer_state"])
     if scheduler is not None and state.get("scheduler_state") is not None:
         scheduler.load_state_dict(state["scheduler_state"])
+    if "rng_state" in state:
+        torch.set_rng_state(state["rng_state"])
+    if "cuda_rng_state" in state and torch.cuda.is_available():
+        torch.cuda.set_rng_state_all(state["cuda_rng_state"])
     return state["step"]

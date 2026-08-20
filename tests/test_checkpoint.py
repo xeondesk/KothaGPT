@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -102,6 +103,84 @@ def test_resume_continues_training(config, tokenizer, tmp_path: Path) -> None:
         max_steps=6,
     )
     assert second["step"] == 6
+
+
+def test_resume_reproduces_next_step_loss(config, tokenizer, tmp_path: Path) -> None:
+    """Fresh-process resume must match a from-scratch run at the same step."""
+    from dataclasses import replace
+
+    from ml.models import BaseModelConfig
+
+    corpus = make_corpus(tmp_path, docs=32)
+    dataset = CausalLMDataset(build_blocks(corpus, tokenizer, block_size=8))
+    # The LR schedule is always driven by the config's max_steps (8), while
+    # the max_steps override only caps the run — so a resume mid-run stays on
+    # the same cosine schedule as a from-scratch run.
+    cfg = BaseModelConfig(
+        model=config.model,
+        training=replace(config.training, max_steps=8),
+        data=config.data,
+    )
+
+    seed_run = tmp_path / "seed"
+    torch.manual_seed(0)
+    train(
+        KothaGPT(cfg.model),
+        cfg,
+        dataset,
+        None,
+        out_dir=seed_run,
+        device="cpu",
+        max_steps=4,
+    )
+
+    resumed_out = tmp_path / "resumed"
+    torch.manual_seed(0)
+    train(
+        KothaGPT(cfg.model),
+        cfg,
+        dataset,
+        None,
+        out_dir=resumed_out,
+        device="cpu",
+        resume_from=seed_run,
+        max_steps=6,
+    )
+
+    fresh_out = tmp_path / "fresh"
+    torch.manual_seed(0)
+    train(
+        KothaGPT(cfg.model),
+        cfg,
+        dataset,
+        None,
+        out_dir=fresh_out,
+        device="cpu",
+        max_steps=6,
+    )
+
+    def loss_at(out: Path, step: int) -> float:
+        rows = [
+            json.loads(line)
+            for line in (out / "history.jsonl").read_text(encoding="utf-8").strip().splitlines()
+        ]
+        return next(r["loss"] for r in rows if r["step"] == step)
+
+    assert loss_at(resumed_out, 5) == loss_at(fresh_out, 5)
+    assert loss_at(resumed_out, 6) == loss_at(fresh_out, 6)
+
+
+def test_metadata_has_run_identity(config, tokenizer, tmp_path: Path) -> None:
+    corpus = make_corpus(tmp_path, docs=8)
+    dataset = CausalLMDataset(build_blocks(corpus, tokenizer, block_size=8))
+    out = tmp_path / "run"
+    train(KothaGPT(config.model), config, dataset, None, out_dir=out, device="cpu")
+    metadata = json.loads((out / "metadata.json").read_text(encoding="utf-8"))
+    assert metadata["run_id"]
+    assert metadata["data_version"]
+    assert metadata["shard_offset"] == 0
+    assert metadata["config_digest"]
+    assert metadata["tokenizer_digest"]
 
 
 def test_resume_model_mismatch_raises(config, tokenizer, tmp_path: Path) -> None:

@@ -82,6 +82,11 @@ def _run(args: argparse.Namespace) -> int:
     )
     dist = init_distributed(dist)
 
+    # Resolve data/tokenized/CURRENT pointers so config.data carries concrete
+    # paths everywhere downstream (datasets, metadata, resume).
+    config.data.train = str(_resolve_data_path(config.data.train))
+    config.data.validation = str(_resolve_data_path(config.data.validation))
+
     tokenizer = load_tokenizer(config.data.tokenizer_path)
     block_size = config.model.max_position_embeddings
 

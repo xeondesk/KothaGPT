@@ -49,6 +49,12 @@ def _make_optimizer(model: torch.nn.Module, training: TrainingConfig):
     )
 
 
+def _collate_batch(dataset, indices: list[int]):
+    """Stack per-sample ``(input_ids, labels)`` pairs into one batch."""
+    parts = [dataset[i] for i in indices]
+    return torch.stack([p[0] for p in parts]), torch.stack([p[1] for p in parts])
+
+
 def _peak_mem_mb(device: str) -> float:
     """Peak resident memory for the step, in MB (GPU alloc or process RSS)."""
     if device.startswith("cuda"):
@@ -97,8 +103,11 @@ def train(
     world_size = dist.world_size or 1
 
     training = config.training
+    # max_steps override only caps the run; the LR schedule always uses the
+    # config's max_steps so resumed runs stay on the same cosine schedule.
+    stop_step = training.max_steps
     if max_steps is not None:
-        training = TrainingConfig(**{**training.to_dict(), "max_steps": max_steps})
+        stop_step = max_steps
 
     torch.manual_seed(training.seed + rank)
     torch.cuda.manual_seed_all(training.seed + rank)
@@ -140,14 +149,17 @@ def train(
             drop_last=True,
             num_workers=0,
         )
+        steps_per_epoch = 0
+        macro = 0
     else:
-        train_loader = DataLoader(
-            train_dataset,
-            batch_size=training.batch_size,
-            shuffle=training.shuffle,
-            drop_last=True,
-            num_workers=0,
-        )
+        # Deterministic, index-driven batches: the permutation for an epoch is
+        # derived purely from (seed, rank, epoch), so resuming at any global
+        # step reproduces the exact batch a from-scratch run would consume.
+        train_loader = None
+        n_train = len(train_dataset)
+        usable = (n_train // training.batch_size) * training.batch_size
+        macro = micro_batches * training.batch_size
+        steps_per_epoch = usable // macro
     validation_loader = (
         DataLoader(validation_dataset, batch_size=training.batch_size, shuffle=False)
         if validation_dataset is not None
@@ -164,7 +176,6 @@ def train(
     accumulated_loss = 0.0
     accumulated_tokens = 0
     last_loss = 0.0
-    micro_batches = training.gradient_accumulation_steps
     epoch = 0
     step_start = time.monotonic()
     smoothed_loss = 0.0
@@ -278,8 +289,10 @@ def train(
                 metadata=metadata,
             )
 
-    while global_step < training.max_steps:
-        if world_size > 1:
+    while global_step < stop_step:
+micro_batches = training.gradient_accumulation_steps
+
+    if world_size > 1:
             sampler.set_epoch(epoch)
         epoch += 1
         any_batch = False
@@ -298,7 +311,7 @@ def train(
 
             if micro_count % micro_batches == 0:
                 finalize_step()
-                if global_step >= training.max_steps:
+                if global_step >= stop_step:
                     break
         if not any_batch:
             break

@@ -1,30 +1,8 @@
 import asyncio
-import subprocess
-import time
 
-import httpx
 import pytest
 from kothagpt import AsyncKothaGPT, KothaGPT
 from kothagpt.websocket import WebSocketClient
-
-
-@pytest.fixture(scope="module")
-def server():
-    proc = subprocess.Popen(
-        ["/Users/khulnasoft/Development/KothaGPT/.venv/bin/python", "-m", "uvicorn", "services.api.app:app", "--port", "8011"],
-        cwd="/Users/khulnasoft/Development/KothaGPT",
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
-    for _ in range(50):
-        try:
-            httpx.get("http://localhost:8011/health")
-            break
-        except httpx.HTTPError:
-            time.sleep(0.2)
-    yield "http://localhost:8011"
-    proc.terminate()
-    proc.wait(timeout=10)
 
 
 @pytest.fixture(scope="module")

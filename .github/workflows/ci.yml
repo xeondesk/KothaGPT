@@ -23,6 +23,10 @@ jobs:
         run: make ci-tokenizer-build
       - name: Tokenizer artifact existence check
         run: make tokenizer-check
+      - name: WS-7 tokenizer efficiency gate
+        run: make tokenizer-bench
+      - name: WS-9 Bangla evaluation (mock backend)
+        run: make eval-bangla
 
   test:
     name: Unit tests

@@ -38,7 +38,8 @@ def iter_records(source: Path) -> Iterator[dict[str, Any]]:
     files = sorted(
         p
         for p in source.rglob("*")
-        if not p.name.startswith(".") and p.suffix.lower() in _SUPPORTED_EXTENSIONS
+        if not p.name.startswith(".")
+        and (p.name.endswith(".jsonl.gz") or p.suffix.lower() in _SUPPORTED_EXTENSIONS)
     )
     if not files:
         raise FileNotFoundError(f"No supported files found under {source}")
@@ -48,8 +49,12 @@ def iter_records(source: Path) -> Iterator[dict[str, Any]]:
             text = _read_text_file(path)
             if text.strip():
                 yield {"id": str(uuid.uuid5(uuid.NAMESPACE_URL, rel)), "text": text, "source": rel}
-        elif path.suffix.lower() == ".jsonl":
-            with path.open(encoding="utf-8") as fh:
+        elif path.name.endswith(".jsonl.gz") or path.suffix.lower() == ".jsonl":
+            if path.name.endswith(".jsonl.gz"):
+                fh = gzip.open(path, "rt", encoding="utf-8")  # type: ignore[assignment]
+            else:
+                fh = path.open(encoding="utf-8")
+            with fh:
                 for lineno, line in enumerate(fh, 1):
                     line = line.strip()
                     if not line:

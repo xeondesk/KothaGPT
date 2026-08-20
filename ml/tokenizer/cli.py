@@ -5,11 +5,13 @@ Usage:
     python -m ml.tokenizer.cli experiments --corpus PATH [--out DIR]
     python -m ml.tokenizer.cli encode --tokenizer DIR --text "..." [--transliterate] | --file PATH
     python -m ml.tokenizer.cli benchmark --tokenizer DIR --file PATH
+    python -m ml.tokenizer.cli freeze --corpus PATH --vocab-size N [--sample-stride N] --out DIR
 """
 
 from __future__ import annotations
 
 import argparse
+import datetime as _dt
 import json
 import sys
 from pathlib import Path
@@ -18,6 +20,7 @@ from ml.tokenizer import load_tokenizer, train_bpe, train_unigram
 from ml.tokenizer.benchmark import GATE_THRESHOLDS, SAMPLE_TEXTS, check_benchmark, run_benchmark
 from ml.tokenizer.corpus import load_corpus
 from ml.tokenizer.transliterate import latin_to_bangla
+from ml.tokenizer.vocab import corpus_digest, coverage_report, export_vocab, version_id
 
 DEFAULT_VOCAB_SIZES = (16000, 32000, 50000)
 
@@ -76,6 +79,29 @@ def _build_parser() -> argparse.ArgumentParser:
         type=float,
         default=None,
         help="override the max average tokens/char gate threshold",
+    )
+
+    freeze_p = sub.add_parser(
+        "freeze",
+        help="Retrain on the normalized corpus and freeze tokenizer + vocab (WS-1/WS-6).",
+    )
+    freeze_p.add_argument("--corpus", required=True, help="corpus dir or file (processed train shards)")
+    freeze_p.add_argument("--algorithm", choices=("bpe", "unigram"), default="bpe")
+    freeze_p.add_argument("--vocab-size", type=int, default=16000)
+    freeze_p.add_argument("--min-frequency", type=int, default=1)
+    freeze_p.add_argument("--out", default="ml/tokenizer")
+    freeze_p.add_argument(
+        "--sample-stride",
+        type=int,
+        default=1,
+        help="train on every Nth document (deterministic memory-safe subsample); "
+        "the corpus digest still covers the full corpus",
+    )
+    freeze_p.add_argument("--coverage-docs", type=int, default=5000)
+    freeze_p.add_argument(
+        "--gate",
+        action="store_true",
+        help="fail (exit 1) when the WS-7 threshold gate is violated",
     )
 
     return parser
@@ -291,6 +317,173 @@ def _cmd_benchmark(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_freeze(args: argparse.Namespace) -> int:
+    from data.pipeline import normalize as norm
+    from ml.tokenizer.vocab import _write_vocab_files
+
+    if args.sample_stride < 1:
+        raise ValueError("--sample-stride must be >= 1")
+
+    raw = load_corpus(args.corpus)
+    if not raw:
+        raise ValueError("empty corpus")
+    print(f"[freeze] loaded {len(raw):,} docs")
+
+    corpus = [norm.normalize_text(doc) for doc in raw]
+    del raw
+    corpus = [doc for doc in corpus if doc.strip()]
+    if not corpus:
+        raise ValueError("empty corpus after normalization")
+    print(f"[freeze] normalized {len(corpus):,} docs")
+
+    digest = corpus_digest(corpus)
+    print(f"[freeze] corpus digest: {digest}")
+
+    train_docs = corpus[:: args.sample_stride]
+    print(
+        f"[freeze] training on {len(train_docs):,} docs "
+        f"(stride {args.sample_stride}; full corpus {len(corpus):,})"
+    )
+
+    tokenizer = _train_one(
+        args.algorithm,
+        train_docs,
+        args.vocab_size,
+        args.min_frequency,
+        max_subword_len=8,
+        iterations=8,
+    )
+    print(f"[freeze] vocab: {len(tokenizer.vocab):,} (target {args.vocab_size:,})")
+
+    out_root = Path(args.out)
+    best_dir = out_root / "artifacts" / "best"
+    tokenizer.save(best_dir)
+    print(f"[freeze] saved tokenizer: {best_dir / 'tokenizer.json'}")
+
+    benchmark = run_benchmark(tokenizer)
+    bench_path = out_root / "artifacts" / "benchmark.json"
+    bench_path.parent.mkdir(parents=True, exist_ok=True)
+    bench_path.write_text(
+        json.dumps(
+            {"tokenizer": str(best_dir), "vocab_size": len(tokenizer.vocab), "result": benchmark},
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    print(
+        f"[freeze] benchmark: tpc={benchmark['avg_tokens_per_char']:.4f} "
+        f"unk={benchmark['dev_max_unk_rate']:.2%} "
+        f"fidelity={benchmark['dev_min_decode_fidelity']:.0%}"
+    )
+
+    if args.gate:
+        failures = check_benchmark(benchmark, dict(GATE_THRESHOLDS))
+        if failures:
+            print("GATE FAILED:")
+            for msg in failures:
+                print(f"  - {msg}")
+            return 1
+        print("GATE PASSED")
+
+    coverage_docs = corpus[: args.coverage_docs]
+    coverage = coverage_report(tokenizer, coverage_docs)
+    print(
+        f"[freeze] coverage on {len(coverage_docs):,} docs: "
+        f"{coverage['coverage']:.2%} (unk {coverage['unk_rate']:.2%})"
+    )
+
+    meta = _write_vocab_files(
+        out_root / "vocab",
+        tokenizer,
+        corpus_digest_value=digest,
+        algorithm=args.algorithm,
+        vocab_size_target=args.vocab_size,
+        coverage=coverage,
+        benchmark=benchmark,
+    )
+    print(f"[freeze] vocab version: {meta['version']}")
+    _write_freeze_reports(
+        out_root,
+        tokenizer,
+        digest,
+        args,
+        coverage,
+        benchmark,
+        len(corpus),
+        len(train_docs),
+    )
+    return 0
+
+
+def _write_freeze_reports(
+    out_root: Path,
+    tokenizer,
+    digest: str,
+    args: argparse.Namespace,
+    coverage: dict,
+    benchmark: dict,
+    corpus_docs: int,
+    train_docs: int,
+) -> None:
+    artifacts = out_root / "artifacts"
+    lines = [
+        "# Tokenizer Freeze Report",
+        "",
+        f"- **version**: `{version_id(digest, export_vocab(tokenizer))}`",
+        f"- **algorithm**: `{args.algorithm}`",
+        f"- **vocab**: {len(tokenizer.vocab):,} (target {args.vocab_size:,})",
+        f"- **corpus docs**: {corpus_docs:,} (training sample: {train_docs:,}, "
+        f"stride {args.sample_stride})",
+        f"- **corpus digest**: `{digest}`",
+        f"- **coverage**: {coverage['coverage']:.2%} (unk {coverage['unk_rate']:.2%})",
+        "",
+        "## Efficiency benchmark (gated dev sets)",
+        f"- avg tokens/char: **{benchmark['avg_tokens_per_char']:.4f}**",
+        f"- dev max unk rate: **{benchmark['dev_max_unk_rate']:.2%}**",
+        f"- dev min decode fidelity: **{benchmark['dev_min_decode_fidelity']:.0%}**",
+        f"- dev min compression vs char: **{benchmark['dev_min_compression_vs_char']:.2f}**",
+        "",
+        "## Artifacts",
+        f"- tokenizer: `{artifacts / 'best/tokenizer.json'}`",
+        f"- benchmark: `{artifacts / 'benchmark.json'}`",
+        f"- vocab: `{out_root / 'vocab/vocab.json'}`",
+        f"- decision: `{out_root / 'DECISION.md'}`",
+        "",
+    ]
+    (artifacts / "REPORT.md").write_text("\n".join(lines), encoding="utf-8")
+
+    decision_lines = [
+        "# Decision — Tokenizer & Vocabulary Freeze",
+        "",
+        f"- **date**: {_dt.datetime.now().isoformat(timespec='seconds')}",
+        f"- **algorithm**: `{args.algorithm}` (vocab {args.vocab_size:,})",
+        f"- **corpus digest**: `{digest}`",
+        "",
+        "## Why this tokenizer/vocab",
+        "",
+        f"- Trained on the normalized Bangla corpus "
+        f"({train_docs:,} docs of {corpus_docs:,}, stride {args.sample_stride}).",
+        f"- Coverage: **{coverage['coverage']:.2%}** of script characters on a "
+        f"{args.coverage_docs:,}-doc sample; unk rate {coverage['unk_rate']:.2%}.",
+        f"- Efficiency gate passes: tpc {benchmark['avg_tokens_per_char']:.4f} "
+        f"(<= {GATE_THRESHOLDS['max_avg_tokens_per_char']}), "
+        f"unk {benchmark['dev_max_unk_rate']:.2%} "
+        f"(<= {GATE_THRESHOLDS['max_dev_unk_rate']}), "
+        f"fidelity {benchmark['dev_min_decode_fidelity']:.0%} "
+        f"(>= {GATE_THRESHOLDS['min_dev_decode_fidelity']}).",
+        "",
+        "## Open questions",
+        "",
+        "- Compare against sentencepiece / tokenizers reference baselines on the "
+        "same corpus (dev-only dependency) and record the numbers here.",
+        "- Re-freeze at 32k / 50k vocab sizes once the 16k baseline is stable.",
+        "",
+    ]
+    (out_root / "DECISION.md").write_text("\n".join(decision_lines), encoding="utf-8")
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
     if args.command == "train":
@@ -301,6 +494,8 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_encode(args)
     if args.command == "benchmark":
         return _cmd_benchmark(args)
+    if args.command == "freeze":
+        return _cmd_freeze(args)
     raise AssertionError(f"unhandled command {args.command}")
 
 

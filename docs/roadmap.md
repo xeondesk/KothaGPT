@@ -19,10 +19,10 @@
 - [x] vocabulary optimization
 
 ## Phase 3 — Model
-- [ ] architecture
+- [x] architecture (decoder-only, RoPE, SwiGLU, RMSNorm)
 - [ ] small-model experiment
-- [ ] pretraining
-- [ ] checkpointing
+- [~] pretraining framework (config, dataset, loop, resume; real run pending)
+- [x] checkpointing
 
 ## Phase 4 — Alignment
 - [ ] SFT

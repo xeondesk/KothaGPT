@@ -19,7 +19,7 @@ tokenizer:
 		--out ml/tokenizer/artifacts
 
 test:
-	python -m pytest tests
+	.venv/bin/python -m pytest tests
 
 lint:
 	ruff check .
@@ -75,6 +75,20 @@ tokenizer-bench:
 		--tokenizer ml/tokenizer/artifacts/best/tokenizer.json \
 		--out ml/tokenizer/artifacts/benchmark.json \
 		--gate
+
+# WS-9: run the Bangla benchmark suite against the mock backend and write a
+# dated JSON report + markdown report under evals/results/.
+eval-bangla:
+	python -m evals.run --suite evals/suites/bangla.yaml
+
+# WS-1/WS-6: retrain on the normalized corpus and freeze tokenizer + vocab
+# (artifacts/best/, vocab/, DECISION.md). On real data use the target vocab
+# size; CI uses a small size so the artifact is cheap to produce.
+tokenizer-freeze:
+	python -m ml.tokenizer.cli freeze \
+		--corpus data/processed/$$(cat data/processed/CURRENT 2>/dev/null)/train \
+		--algorithm bpe --vocab-size 2000 --min-frequency 1 --gate \
+		--out ml/tokenizer
 
 serve-proto:
 	uvicorn services.api.app:app --host 0.0.0.0 --port 8000

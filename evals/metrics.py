@@ -1,0 +1,124 @@
+"""Evaluation metrics for the Bangla benchmark (pure stdlib).
+
+- ``exact_match`` — token-normalized exact match against a reference.
+- ``rouge`` — ROUGE-1/2/L F1 (character-level tokens).
+- ``language_detection`` — majority-script classifier (Bengali/English).
+- ``bengali_script_ratio`` — fraction of Bengali-script codepoints.
+- ``mean_ci`` — mean with a 95% confidence interval (normal approximation).
+"""
+
+from __future__ import annotations
+
+import math
+import statistics
+import unicodedata
+
+__all__ = [
+    "bengali_script_ratio",
+    "exact_match",
+    "language_detection",
+    "mean_ci",
+    "normalize_answer",
+    "rouge",
+]
+
+_BENGALI_RANGES = ((0x0980, 0x09FF), (0x0964, 0x0965))
+_LATIN_RANGES = ((0x0041, 0x005A), (0x0061, 0x007A))
+
+
+def _in_ranges(cp: int, ranges: tuple[tuple[int, int], ...]) -> bool:
+    return any(lo <= cp <= hi for lo, hi in ranges)
+
+
+def bengali_script_ratio(text: str) -> float:
+    """Fraction of Bengali/Latin script chars that are Bengali (vowel signs count)."""
+    bn = sum(_in_ranges(ord(ch), _BENGALI_RANGES) for ch in text)
+    la = sum(_in_ranges(ord(ch), _LATIN_RANGES) for ch in text)
+    total = bn + la
+    if total == 0:
+        return 0.0
+    return bn / total
+
+
+def language_detection(text: str) -> str:
+    """Return ``'bn'`` or ``'en'`` based on the dominant script character count."""
+    bn = sum(_in_ranges(ord(ch), _BENGALI_RANGES) for ch in text)
+    la = sum(_in_ranges(ord(ch), _LATIN_RANGES) for ch in text)
+    if bn > la:
+        return "bn"
+    if la > bn:
+        return "en"
+    return "bn" if bn else "en"
+
+
+def normalize_answer(text: str) -> str:
+    """Lowercase, NFC-normalize, and collapse whitespace for comparison."""
+    text = unicodedata.normalize("NFC", text or "")
+    text = " ".join(text.lower().split())
+    return text.strip(" .।,;:!?()[]{}\"")
+
+
+def exact_match(prediction: str, reference: str) -> float:
+    return 1.0 if normalize_answer(prediction) == normalize_answer(reference) else 0.0
+
+
+def _lcs(x: list[str], y: list[str]) -> int:
+    m, n = len(x), len(y)
+    if m == 0 or n == 0:
+        return 0
+    prev = [0] * (n + 1)
+    for i in range(1, m + 1):
+        cur = [0] * (n + 1)
+        for j in range(1, n + 1):
+            cur[j] = prev[j - 1] + 1 if x[i - 1] == y[j - 1] else max(prev[j], cur[j - 1])
+        prev = cur
+    return prev[n]
+
+
+def _rouge_f1(prediction: str, reference: str, n: int | None) -> float:
+    def tokens(text: str) -> list[str]:
+        if n == 1 or n is None:
+            return text.split()
+        grams: list[str] = []
+        parts = text.split()
+        for i in range(len(parts) - n + 1):
+            grams.append(" ".join(parts[i : i + n]))
+        return grams
+
+    pred = normalize_answer(prediction).split()
+    ref = normalize_answer(reference).split()
+    if not pred or not ref:
+        return 0.0
+    if n is None:
+        overlap = _lcs(pred, ref)
+        precision = overlap / len(pred) if pred else 0.0
+        recall = overlap / len(ref) if ref else 0.0
+    else:
+        pred_g, ref_g = tokens(prediction), tokens(reference)
+        if not pred_g or not ref_g:
+            return 0.0
+        precision = sum(1 for g in pred_g if g in set(ref_g)) / len(pred_g)
+        recall = sum(1 for g in ref_g if g in set(pred_g)) / len(ref_g)
+    if precision + recall == 0:
+        return 0.0
+    return 2 * precision * recall / (precision + recall)
+
+
+def rouge(prediction: str, reference: str) -> dict[str, float]:
+    """ROUGE-1, ROUGE-2 and ROUGE-L F1 scores."""
+    return {
+        "rouge1": _rouge_f1(prediction, reference, 1),
+        "rouge2": _rouge_f1(prediction, reference, 2),
+        "rougeL": _rouge_f1(prediction, reference, None),
+    }
+
+
+def mean_ci(values: list[float], z: float = 1.96) -> dict[str, float]:
+    """Mean, std, and a normal-approximation 95% CI."""
+    n = len(values)
+    if n == 0:
+        return {"mean": 0.0, "std": 0.0, "ci_low": 0.0, "ci_high": 0.0}
+    mean = statistics.mean(values)
+    std = statistics.stdev(values) if n > 1 else 0.0
+    se = std / math.sqrt(n)
+    return {"mean": mean, "std": std, "ci_low": mean - z * se, "ci_high": mean + z * se}

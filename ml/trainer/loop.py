@@ -1,0 +1,232 @@
+"""The training loop: mixed precision, gradient accumulation, distributed."""
+
+from __future__ import annotations
+
+import math
+from contextlib import nullcontext
+from pathlib import Path
+
+import torch
+from torch.utils.data import DataLoader
+from torch.utils.data.distributed import DistributedSampler
+
+from ml.models import BaseModelConfig, KothaGPT, TrainingConfig
+
+from .checkpoint import (
+    latest_checkpoint,
+    metadata_for,
+    resume,
+    save_checkpoint,
+)
+from .dataset import CausalLMDataset
+from .distributed import DistributedConfig, all_reduce_mean, is_main_rank, unwrap_module, wrap_model
+from .monitor import Monitor
+from .scheduler import build_scheduler, group_parameters
+
+
+def _autocast_context(training: TrainingConfig, device: str):
+    if training.mixed_precision in ("bf16", "fp16") and device.startswith("cuda"):
+        dtype = torch.bfloat16 if training.mixed_precision == "bf16" else torch.float16
+        return torch.autocast(device_type="cuda", dtype=dtype)
+    return nullcontext()
+
+
+def _make_optimizer(model: torch.nn.Module, training: TrainingConfig):
+    params = group_parameters(model, training.weight_decay)
+    return torch.optim.AdamW(
+        params,
+        lr=training.learning_rate,
+        betas=(training.beta1, training.beta2),
+        weight_decay=training.weight_decay,
+    )
+
+
+def _validate_step(
+    model: torch.nn.Module,
+    validation: DataLoader,
+    training: TrainingConfig,
+    device: str,
+) -> float:
+    model.eval()
+    total = 0.0
+    seen = 0
+    cap = 20
+    with torch.no_grad(), _autocast_context(training, device):
+        for input_ids, labels in validation:
+            input_ids = input_ids.to(device)
+            labels = labels.to(device)
+            total += model(input_ids=input_ids, labels=labels)["loss"].item()
+            seen += 1
+            if seen >= cap:
+                break
+    return total / max(seen, 1)
+
+
+def train(
+    model: KothaGPT,
+    config: BaseModelConfig,
+    train_dataset: CausalLMDataset,
+    validation_dataset: CausalLMDataset | None,
+    *,
+    out_dir: str | Path,
+    device: str = "cpu",
+    start_step: int = 0,
+    max_steps: int | None = None,
+    resume_from: str | Path | None = None,
+    dist: DistributedConfig | None = None,
+) -> dict:
+    dist = dist or DistributedConfig(distributed=False).effective()
+    rank = dist.rank or 0
+    world_size = dist.world_size or 1
+
+    training = config.training
+    if max_steps is not None:
+        training = TrainingConfig(**{**training.to_dict(), "max_steps": max_steps})
+
+    torch.manual_seed(training.seed + rank)
+    torch.cuda.manual_seed_all(training.seed + rank)
+
+    model.to(device)
+    model.train()
+    model.gradient_checkpointing = training.gradient_checkpointing
+
+    optimizer = _make_optimizer(model, training)
+    scheduler = build_scheduler(optimizer, training)
+
+    if resume_from is not None and latest_checkpoint(resume_from) is not None:
+        start_step = resume(
+            resume_from,
+            model=model,
+            optimizer=optimizer,
+            scheduler=scheduler,
+            config=config,
+        )
+
+    model = wrap_model(model, dist, device)
+    model.train()
+
+    monitor = Monitor(out_dir, rank=rank)
+    metadata = metadata_for(config, config.data.tokenizer_path)
+
+    if world_size > 1:
+        sampler = DistributedSampler(
+            train_dataset,
+            num_replicas=world_size,
+            rank=rank,
+            shuffle=training.shuffle,
+            seed=training.seed,
+        )
+        train_loader = DataLoader(
+            train_dataset,
+            batch_size=training.batch_size,
+            sampler=sampler,
+            drop_last=True,
+            num_workers=0,
+        )
+    else:
+        train_loader = DataLoader(
+            train_dataset,
+            batch_size=training.batch_size,
+            shuffle=training.shuffle,
+            drop_last=True,
+            num_workers=0,
+        )
+    validation_loader = (
+        DataLoader(validation_dataset, batch_size=training.batch_size, shuffle=False)
+        if validation_dataset is not None
+        else None
+    )
+
+    scaler = (
+        torch.amp.GradScaler("cuda", enabled=training.mixed_precision == "fp16")
+        if device.startswith("cuda")
+        else None
+    )
+
+    global_step = start_step
+    accumulated_loss = 0.0
+    last_loss = 0.0
+    micro_batches = training.gradient_accumulation_steps
+    epoch = 0
+
+    def finalize_step() -> None:
+        nonlocal accumulated_loss, last_loss, global_step
+        if scaler is not None:
+            scaler.unscale_(optimizer)
+        torch.nn.utils.clip_grad_norm_(model.parameters(), training.grad_clip)
+        if scaler is not None:
+            scaler.step(optimizer)
+            scaler.update()
+        else:
+            optimizer.step()
+        optimizer.zero_grad(set_to_none=True)
+        scheduler.step()
+
+        global_step += 1
+        reported_loss = all_reduce_mean(
+            torch.tensor([accumulated_loss], device=device), dist
+        ).item()
+        last_loss = reported_loss
+        accumulated_loss = 0.0
+        lr = optimizer.param_groups[0]["lr"]
+        monitor.log(
+            global_step,
+            {"loss": reported_loss, "lr": lr, "tokens": input_ids.numel()},
+        )
+
+        if (
+            is_main_rank(rank)
+            and global_step % training.eval_interval == 0
+            and validation_loader is not None
+        ):
+            val_loss = _validate_step(model, validation_loader, training, device)
+            monitor.log(global_step, {"val_loss": val_loss, "val_ppl": math.exp(min(val_loss, 20))})
+
+        if is_main_rank(rank) and global_step % training.save_interval == 0:
+            save_checkpoint(
+                out_dir,
+                model=unwrap_module(model),
+                optimizer=optimizer,
+                scheduler=scheduler,
+                step=global_step,
+                config=config,
+                metadata=metadata,
+            )
+
+    while global_step < training.max_steps:
+        if world_size > 1:
+            sampler.set_epoch(epoch)
+        epoch += 1
+        any_batch = False
+        for micro_count, (input_ids, labels) in enumerate(train_loader, start=1):
+            any_batch = True
+            input_ids = input_ids.to(device)
+            labels = labels.to(device)
+            with _autocast_context(training, device):
+                loss = model(input_ids=input_ids, labels=labels)["loss"] / micro_batches
+            if scaler is not None:
+                scaler.scale(loss).backward()
+            else:
+                loss.backward()
+            accumulated_loss += loss.item()
+
+            if micro_count % micro_batches == 0:
+                finalize_step()
+                if global_step >= training.max_steps:
+                    break
+        if not any_batch:
+            break
+        if accumulated_loss > 0:
+            finalize_step()
+
+    if is_main_rank(rank) and latest_checkpoint(out_dir) is None:
+        save_checkpoint(
+            out_dir,
+            model=unwrap_module(model),
+            optimizer=optimizer,
+            scheduler=scheduler,
+            step=global_step,
+            config=config,
+            metadata=metadata,
+        )
+    return {"step": global_step, "loss": last_loss}

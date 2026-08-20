@@ -214,8 +214,30 @@ Goal: reproducible evaluation for the benchmark.
 
 Wave A (WS-2 Unicode normalization, WS-3 punctuation, WS-4 mixed text, WS-5
 transliteration) is implemented and tested (`tests/test_bangla_foundation.py`,
-`tests/fixtures/transliteration.json`). Remaining work:
+`tests/fixtures/transliteration.json`). Wave B and Wave C are also implemented:
 
-1. Extend `benchmark.py` sets + metrics (WS-7).
-2. Seed `data/benchmarks/bangla/v1/` JSONL (WS-8) + `evals/run.py` (WS-9).
-3. Freeze the tokenizer + `vocab.json` after Wave A lands (WS-1, WS-6).
+1. **WS-7** — `benchmark.py` has the `translit`/`digits`/`names`/`social` sets
+   and unk-rate / decode-fidelity / compression / paragraph-stability metrics;
+   the CI gate `make tokenizer-bench` (unk < 0.5%, fidelity 100%, tokens/char
+   budget) runs in `.github/workflows/ci.yml`.
+2. **WS-8** — `data/benchmarks/bangla/v1/` is generated deterministically by
+   `generate.py` (576 QA with verbatim-span answers, 1120 bn↔en translation,
+   108 summarization, 26 generation) with MANIFEST + README; counts live in
+   `evals/suites/bangla.yaml`.
+3. **WS-9** — `evals/run.py` + `evals/metrics.py` (exact_match, rouge,
+   language_detection, bengali_script_ratio, mean + 95% CI) run the suite
+   against a mock backend (gold = 100%) or the API backend; results go under
+   `evals/results/`; `make eval-bangla` runs in CI.
+4. **WS-1/WS-6** — `ml/tokenizer/vocab.py` (export/validate/version) and the
+   `freeze` CLI command produce `ml/tokenizer/artifacts/best/`,
+   `ml/tokenizer/vocab/` (`vocab.json` + coverage report, versioned
+   `1.0.0+<corpus-hash>`), `ml/tokenizer/artifacts/REPORT.md` and
+   `ml/tokenizer/DECISION.md`. The CI freeze runs on the 12-doc fixture corpus;
+   `--sample-stride N` keeps training memory-safe on the real corpus.
+
+Remaining (corpus-dependent / training-env):
+
+- Retrain + freeze at the production vocab size (16k/32k/50k) on the full
+  normalized Wikipedia corpus (`make tokenizer-freeze --vocab-size N`).
+- Compare against sentencepiece/tokenizers reference baselines (dev-only) and
+  record them in `DECISION.md`.

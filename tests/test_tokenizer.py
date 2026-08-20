@@ -287,3 +287,58 @@ def test_load_corpus_jsonl(tmp_path):
     )
     texts = load_corpus(tmp_path / "c.jsonl")
     assert texts == ["বাংলা ভাষা", "সাহিত্য ও সংস্কৃতি"]
+
+
+# --- WS-1 / WS-6 vocabulary freeze ----------------------------------------
+
+def test_corpus_digest_is_content_addressed():
+    from ml.tokenizer import corpus_digest
+
+    a = corpus_digest(["বাংলা ভাষা", "সাহিত্য"])
+    b = corpus_digest(["বাংলা ভাষা"])
+    c = corpus_digest(["বাংলা ভাষা", "সাহিত্য"])
+    assert a == c
+    assert a != b
+    assert len(a) == 12
+
+
+def test_version_id_includes_corpus_and_vocab():
+    from ml.tokenizer import version_id
+
+    v1 = version_id("cafe123", {"<unk>": 0, "ব": 1})
+    v2 = version_id("cafe124", {"<unk>": 0, "ব": 1})
+    v3 = version_id("cafe123", {"<unk>": 0, "ব": 2})
+    assert v1.startswith("1.0.0+cafe123.")
+    assert v1 != v2
+    assert v1 != v3
+
+
+def test_coverage_report_metrics(corpus):
+    from ml.tokenizer import coverage_report
+
+    tokenizer = train_bpe(corpus, vocab_size=400, min_frequency=2)
+    report = coverage_report(tokenizer, corpus)
+    assert 0.0 <= report["coverage"] <= 1.0
+    assert 0.0 <= report["unk_rate"] <= 1.0
+    assert report["tokens_per_char"] > 0.0
+    assert report["num_known"] > 0
+
+
+def test_coverage_report_full_coverage_on_seen_text(corpus):
+    from ml.tokenizer import coverage_report
+
+    tokenizer = train_bpe(corpus, vocab_size=400, min_frequency=1)
+    # Every char of the training corpus is in BOOTSTRAP_CHARS, so the
+    # tokenizer must cover the same text losslessly.
+    report = coverage_report(tokenizer, corpus[:10])
+    assert report["unk_rate"] == 0.0
+    assert report["coverage"] == 1.0
+
+
+def test_export_vocab_matches_tokenizer(corpus):
+    from ml.tokenizer import export_vocab
+
+    tokenizer = train_bpe(corpus, vocab_size=400, min_frequency=2)
+    exported = export_vocab(tokenizer)
+    assert exported == tokenizer.vocab
+    assert "<unk>" in exported

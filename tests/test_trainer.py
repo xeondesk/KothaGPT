@@ -121,6 +121,56 @@ def test_checkpoint_metadata_saved(config, tokenizer, tmp_path: Path) -> None:
     assert (out / "metadata.json").exists()
 
 
+def test_best_checkpoint_and_samples(config, tokenizer, tmp_path: Path) -> None:
+    corpus = make_corpus(tmp_path, docs=16)
+    train_dataset = CausalLMDataset(build_blocks(corpus, tokenizer, block_size=8))
+    val_dataset = CausalLMDataset(build_blocks(corpus, tokenizer, block_size=8))
+    model = KothaGPT(config.model)
+    out = tmp_path / "run"
+    train(
+        model,
+        config,
+        train_dataset,
+        val_dataset,
+        out_dir=out,
+        device="cpu",
+        tokenizer=tokenizer,
+    )
+    assert (out / "checkpoints" / "best.pt").exists()
+    assert (out / "samples" / "step-0000004.txt").exists()
+    best = load_checkpoint(out / "checkpoints" / "best.pt")
+    assert best["step"] >= 1
+
+
+def test_identical_seeds_identical_val_loss(config, tokenizer, tmp_path: Path) -> None:
+    corpus = make_corpus(tmp_path, docs=32)
+    train_dataset = CausalLMDataset(build_blocks(corpus, tokenizer, block_size=8))
+    val_dataset = CausalLMDataset(build_blocks(corpus, tokenizer, block_size=8))
+
+    def run() -> float:
+        model = KothaGPT(config.model)
+        train(
+            model,
+            config,
+            train_dataset,
+            val_dataset,
+            out_dir=tmp_path / "r",
+            device="cpu",
+        )
+        rows = [
+            json.loads(line)
+            for line in (tmp_path / "r" / "history.jsonl")
+            .read_text(encoding="utf-8")
+            .strip()
+            .splitlines()
+        ]
+        return next(r["val_ppl"] for r in rows if "val_ppl" in r)
+
+    first = run()
+    second = run()
+    assert first == second
+
+
 def test_trend_guard_aborts_on_divergence(config, tokenizer, tmp_path: Path, monkeypatch) -> None:
     from ml.trainer.loop import TrainingDiverged
 

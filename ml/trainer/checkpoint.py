@@ -50,6 +50,31 @@ def metadata_for(
     }
 
 
+def _checkpoint_payload(
+    *,
+    model: torch.nn.Module,
+    optimizer: torch.optim.Optimizer,
+    scheduler: Any,
+    step: int,
+    config: BaseModelConfig,
+    metadata: dict[str, Any],
+) -> dict[str, Any]:
+    return {
+        "step": step,
+        "model_state": model.state_dict(),
+        "optimizer_state": optimizer.state_dict(),
+        "scheduler_state": scheduler.state_dict() if scheduler is not None else None,
+        "config": config,
+        "metadata": metadata,
+    }
+
+
+def _atomic_save(payload: dict[str, Any], path: Path) -> None:
+    tmp_path = path.with_suffix(".tmp")
+    torch.save(payload, tmp_path)
+    os.replace(tmp_path, path)
+
+
 def save_checkpoint(
     out_dir: str | Path,
     *,
@@ -80,20 +105,48 @@ def save_checkpoint(
         json.dumps(metadata, indent=2) + "\n", encoding="utf-8"
     )
 
-    payload = {
-        "step": step,
-        "model_state": model.state_dict(),
-        "optimizer_state": optimizer.state_dict(),
-        "scheduler_state": scheduler.state_dict() if scheduler is not None else None,
-        "config": config,
-        "metadata": metadata,
-    }
     final_path = checkpoints / f"step-{step:07d}.pt"
-    tmp_path = final_path.with_suffix(".tmp")
-    torch.save(payload, tmp_path)
-    os.replace(tmp_path, final_path)
+    _atomic_save(
+        _checkpoint_payload(
+            model=model,
+            optimizer=optimizer,
+            scheduler=scheduler,
+            step=step,
+            config=config,
+            metadata=metadata,
+        ),
+        final_path,
+    )
     _prune(checkpoints, keep=config.training.keep_last)
     return final_path
+
+
+def save_best_checkpoint(
+    out_dir: str | Path,
+    *,
+    model: torch.nn.Module,
+    optimizer: torch.optim.Optimizer,
+    scheduler: Any,
+    step: int,
+    config: BaseModelConfig,
+    metadata: dict[str, Any],
+) -> Path:
+    """Atomically write the best-validation checkpoint (kept across pruning)."""
+    checkpoints = Path(out_dir) / "checkpoints"
+    checkpoints.mkdir(parents=True, exist_ok=True)
+    best_path = checkpoints / "best.pt"
+    _atomic_save(
+        _checkpoint_payload(
+            model=model,
+            optimizer=optimizer,
+            scheduler=scheduler,
+            step=step,
+            config=config,
+            metadata=metadata,
+        ),
+        best_path,
+    )
+    return best_path
 
 
 def _prune(checkpoints: Path, keep: int) -> None:

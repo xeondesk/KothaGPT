@@ -107,6 +107,7 @@ def _run(args: argparse.Namespace) -> int:
         resume_from=resume_from,
         max_steps=args.max_steps,
         dist=dist,
+        tokenizer=tokenizer,
     )
 
     if (dist.rank or 0) == 0:

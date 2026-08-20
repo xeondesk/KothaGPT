@@ -18,10 +18,12 @@ from .checkpoint import (
     latest_checkpoint,
     metadata_for,
     resume,
+    save_best_checkpoint,
     save_checkpoint,
 )
 from .dataset import CausalLMDataset
 from .distributed import DistributedConfig, all_reduce_mean, is_main_rank, unwrap_module, wrap_model
+from .evaluate import sample_text
 from .monitor import Monitor
 from .scheduler import build_scheduler, group_parameters
 
@@ -64,7 +66,7 @@ def _validate_step(
     model.eval()
     total = 0.0
     seen = 0
-    cap = 20
+    cap = training.eval_batches
     with torch.no_grad(), _autocast_context(training, device):
         for input_ids, labels in validation:
             input_ids = input_ids.to(device)
@@ -88,6 +90,7 @@ def train(
     max_steps: int | None = None,
     resume_from: str | Path | None = None,
     dist: DistributedConfig | None = None,
+    tokenizer=None,
 ) -> dict:
     dist = dist or DistributedConfig(distributed=False).effective()
     rank = dist.rank or 0
@@ -167,10 +170,11 @@ def train(
     smoothed_loss = 0.0
     last_smoothed: float | None = None
     flat_steps = 0
+    best_val_ppl = float("inf")
 
     def finalize_step() -> None:
         nonlocal accumulated_loss, accumulated_tokens, last_loss, global_step, step_start
-        nonlocal smoothed_loss, last_smoothed, flat_steps
+        nonlocal smoothed_loss, last_smoothed, flat_steps, best_val_ppl
         if scaler is not None:
             scaler.unscale_(optimizer)
         grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), training.grad_clip)
@@ -235,7 +239,33 @@ def train(
             and validation_loader is not None
         ):
             val_loss = _validate_step(model, validation_loader, training, device)
-            monitor.log(global_step, {"val_loss": val_loss, "val_ppl": math.exp(min(val_loss, 20))})
+            val_ppl = math.exp(min(val_loss, 20))
+            monitor.log(global_step, {"val_loss": val_loss, "val_ppl": val_ppl})
+            if val_ppl < best_val_ppl:
+                best_val_ppl = val_ppl
+                save_best_checkpoint(
+                    out_dir,
+                    model=unwrap_module(model),
+                    optimizer=optimizer,
+                    scheduler=scheduler,
+                    step=global_step,
+                    config=config,
+                    metadata=metadata,
+                )
+                print(
+                    f"step {global_step}: new best val_ppl={val_ppl:.4f} "
+                    f"(checkpoints/best.pt)",
+                    flush=True,
+                )
+            if tokenizer is not None:
+                samples_dir = Path(out_dir) / "samples"
+                samples_dir.mkdir(parents=True, exist_ok=True)
+                text = sample_text(
+                    model, tokenizer, "বাংলা", max_new_tokens=16, device=device
+                )
+                (samples_dir / f"step-{global_step:07d}.txt").write_text(
+                    text + "\n", encoding="utf-8"
+                )
 
         if is_main_rank(rank) and global_step % training.save_interval == 0:
             save_checkpoint(

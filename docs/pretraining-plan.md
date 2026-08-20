@@ -173,7 +173,7 @@ abort the run non-zero. `wandb|tensorboard` backends deferred to WS-9.
 Smoke (cpu, 200 steps) emits all fields (~4.6k tok/s); `test_trend_guard_aborts_on_divergence`
 covers the abort path (constant 999.0 loss → fires at patience).
 
-### WS-7 — Validation monitoring (`ml/trainer/loop.py`)
+### WS-7 — Validation monitoring (`ml/trainer/loop.py`) — DONE
 
 Goal: track held-out quality through the run.
 
@@ -185,6 +185,16 @@ Goal: track held-out quality through the run.
 - Deliverables: best-tracker, `best.pt`, eval schedule config fields.
 - Metric: two identically-seeded runs report identical val loss; `best.pt`
   exists after any run with a validation split.
+
+Status: **done** — `training.eval_batches` (default 20) sets a stable
+deterministic validation window (`shuffle=False`, capped batches). Every eval
+logs `val_loss`/`val_ppl`; when val_ppl improves, `checkpoints/best.pt` is
+written atomically via the refactored `save_best_checkpoint` (full state,
+resumable, and untouched by `_prune` which only globs `step-*.pt`). Eval-time
+greedy samples are written to `<out>/samples/step-<N>.txt` when a tokenizer is
+available. Tests: `test_best_checkpoint_and_samples` (best.pt + samples
+exist) and `test_identical_seeds_identical_val_loss` (two seeded runs →
+identical val_ppl).
 
 ### WS-8 — Checkpointing (`ml/trainer/checkpoint.py`)
 

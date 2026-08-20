@@ -120,14 +120,14 @@ eval-bangla:
 
 # Instruction tuning: validate records and run completion-only SFT.
 sft-smoke:
-	python -m ml.instruction.sft \
+	.venv/bin/python -m ml.instruction.sft \
 		--train tests/fixtures/instruction.jsonl \
 		--tokenizer ml/tokenizer/artifacts/best/tokenizer.json \
 		--config ml/configs/smoke.yaml \
 		--device cpu --max-steps 1 --out ml/sft/artifacts/smoke
 
 sft-eval:
-	python -m evals.sft \
+	.venv/bin/python -m evals.sft \
 		--records tests/fixtures/instruction.jsonl \
 		--predictions tests/fixtures/instruction.predictions.json \
 		--out evals/results/sft

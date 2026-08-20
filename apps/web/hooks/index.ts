@@ -52,6 +52,31 @@ export function useDatasets() {
   return useQuery({ queryKey: ["datasets"], queryFn: datasetsApi.list });
 }
 
+export function useDataset(id: string) {
+  return useQuery({
+    queryKey: ["datasets", id],
+    queryFn: () => datasetsApi.get(id),
+    enabled: !!id,
+  });
+}
+
+export function useDatasetVersions(id: string) {
+  return useQuery({
+    queryKey: ["datasets", id, "versions"],
+    queryFn: () => datasetsApi.versions(id),
+    enabled: !!id,
+  });
+}
+
+export function useUploadDataset() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ file, name }: { file: File; name: string }) =>
+      datasetsApi.upload(file, name),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["datasets"] }),
+  });
+}
+
 export function useTrainingJobs() {
   return useQuery({ queryKey: ["training"], queryFn: trainingApi.list });
 }

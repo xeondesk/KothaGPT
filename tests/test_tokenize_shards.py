@@ -136,7 +136,6 @@ def test_matches_trainer_build_blocks(tokenized):
     pytest.importorskip("torch")
     _, manifest_path = tokenized
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    from ml.tokenizer import load_tokenizer
     from ml.trainer.dataset import build_blocks
 
     tokenizer = _load_tokenizer(manifest["tokenizer_path"])
@@ -156,7 +155,6 @@ def test_matches_trainer_build_blocks(tokenized):
 def test_token_count_matches_encoding(tokenized):
     result, manifest_path = tokenized
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    from ml.tokenizer import load_tokenizer
 
     tokenizer = _load_tokenizer(manifest["tokenizer_path"])
     records = [

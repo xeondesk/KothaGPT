@@ -40,3 +40,5 @@ jobs:
         run: pip install -r services/api/requirements.txt -e packages/python-sdk packages/cli
       - name: Run tests
         run: make test
+      - name: Tokenize shards (WS-1/2)
+        run: python -m pytest tests/test_tokenize_shards.py

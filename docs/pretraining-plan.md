@@ -29,7 +29,7 @@ Guiding principles:
 | Model | `ml/models/` full KothaGPT (embedding, attention, blocks, SwiGLU, RoPE, RMSNorm, output head) | vocab_size in `small.yaml` (50000) not yet wired to frozen 16k tokenizer |
 | Trainer core | `ml/trainer/` loop, checkpoint (atomic/resume), scheduler (cosine+warmup), monitor (JSONL), DDP/FSDP, mixed precision, grad accumulation/checkpointing | data loader builds all blocks eagerly in RAM; no tokens/sec throughput |
 | Dataset loading | `trainer/dataset.py` `build_blocks()` + `CausalLMDataset` over raw shards | loads whole corpus into one `LongTensor`; `num_workers=0`; no memmap; not shard-scalable |
-| Tokenizer | frozen 16k BPE (`ml/tokenizer/artifacts/best/`, GPT-2-style `▁`) | no tokenized corpus artifact |
+| Tokenizer | frozen 16k BPE (`ml/tokenizer/artifacts/best/`, GPT-2-style `▁`) | tokenized artifact now exists (`data/tokenized/...`) |
 | Corpus | `data/processed/48245cff8e8e/` current (152M, `train/` 2 gz shards + `validation/`) | no token-id shards; no shard MANIFEST |
 | Eval | `trainer/evaluate.py` (val ppl + greedy samples); `evals/run.py` + `data/benchmarks/bangla/v1` (QA/translation/summarization/generation) | no scheduled eval-on-checkpoint in the run |
 | GPU env | CLI accepts `--device cuda`, bf16/fp16, DDP/FSDP wiring | no verified GPU environment, no smoke config, no torchrun orchestration |
@@ -40,7 +40,7 @@ Guiding principles:
 
 ## Workstreams
 
-### WS-1 — Dataset tokenizer pipeline তৈরি (`ml/tokenize_shards.py`)
+### WS-1 — Dataset tokenizer pipeline তৈরি (`ml/tokenize_shards.py`) — DONE
 
 Goal: convert the processed corpus shards into token-id shards, once, so
 training never re-tokenizes.
@@ -57,6 +57,12 @@ training never re-tokenizes.
 - Metric: tokenizing the current corpus is idempotent (digest stable); token
   count matches the raw-shard token count within packing tolerance.
 
+Status: **done** — `ml/tokenize_shards.py` + `make data-tokenize`; current
+corpus tokenized to `data/tokenized/48245cff8e8e-c6900e009522/` (71.6M tokens,
+17,491 blocks; train 17,157 / validation 334). Tests in
+`tests/test_tokenize_shards.py` (idempotency, block equivalence with
+`build_blocks`, token-count matching) wired into CI.
+
 ### WS-2 — Training shards তৈরি (`data/tokenized/` layout)
 
 Goal: shards sized for parallel multi-GPU ingestion.
@@ -69,6 +75,11 @@ Goal: shards sized for parallel multi-GPU ingestion.
 - Deliverables: sharded tokenized corpus + MANIFEST; `Makefile` target.
 - Metric: `make data-tokenize` reproduces byte-identical shards (idempotent);
   a validation shard holds ≥ 5k blocks.
+
+Status: **partial** — per-input-shard `.bin` + sidecar `.json` layout and
+MANIFEST are in place (`make data-tokenize`); the current corpus is small
+enough to be a single training shard per split, so the fixed-size ~1–2 GB
+chunking/regrouping step is deferred until the corpus grows past that.
 
 ### WS-3 — Data loader optimize করা (`ml/trainer/dataset.py`)
 

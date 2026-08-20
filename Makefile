@@ -95,6 +95,33 @@ serve-proto:
 
 # --- Developer SDK -----------------------------------------------------------
 
+# --- Docker Compose ----------------------------------------------------------
+
+.PHONY: up down logs ps stop restart build
+
+up:
+	docker compose up -d
+
+down:
+	docker compose down
+
+logs:
+	docker compose logs -f
+
+ps:
+	docker compose ps
+
+stop:
+	docker compose stop
+
+restart:
+	docker compose restart
+
+build:
+	docker compose build
+
+# --- Developer SDK -----------------------------------------------------------
+
 .PHONY: sdk-install sdk-test sdk-lint sdk-build
 
 sdk-install:

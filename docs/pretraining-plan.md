@@ -121,6 +121,8 @@ Goal: a verified, reproducible GPU path from any clean machine.
 - Metric: `make gpu-verify` passes on a CUDA machine; the smoke run reports
   `device=cuda` and real throughput.
 
+Status: **done** — `ml/gpu_verify.py` reports CUDA devices, bf16, and NCCL/Gloo support, then runs a one-step real trainer smoke test. `make gpu-env`, `make gpu-verify`, and `make gpu-smoke` are available; Compose has an opt-in NVIDIA GPU profile with tokenized-data and artifact mounts. CPU-only environments receive an actionable failure and continue to use `make train-smoke`.
+
 ### WS-5 — Small model দিয়ে test training (`ml/configs/smoke.yaml`) — DONE
 
 Goal: prove the whole pipeline end-to-end before scaling.

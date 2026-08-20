@@ -64,6 +64,17 @@ train-smoke: data-tokenize-smoke
 		--out ml/pretrain/artifacts/smoke \
 		--max-steps 200
 
+gpu-env:
+	@echo "Installing training dependencies from ml/requirements.txt..."
+	@echo "CUDA-specific PyTorch wheels are selected by the host environment; no CI index is forced."
+	.venv/bin/python -m pip install -r ml/requirements.txt
+
+gpu-verify:
+	.venv/bin/python -m ml.gpu_verify
+
+gpu-smoke:
+	.venv/bin/python -m ml.gpu_verify
+
 tokenizer-build:
 	@echo "Building tokenizer artifacts..."
 	python -m ml.tokenizer.cli train \

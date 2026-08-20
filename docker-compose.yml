@@ -23,6 +23,22 @@ services:
     ports: ["8000:8000"]
     depends_on: [postgres, redis, qdrant]
 
+  trainer:
+    profiles: [gpu]
+    build: ./services/api
+    working_dir: /workspace
+    command: ["python", "-m", "ml.gpu_verify"]
+    volumes:
+      - ./data/tokenized:/workspace/data/tokenized:ro
+      - ./ml/pretrain/artifacts:/workspace/ml/pretrain/artifacts
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
 volumes:
   postgres_data:
   qdrant_data:

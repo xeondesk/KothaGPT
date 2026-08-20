@@ -134,6 +134,8 @@ def train(
     monitor = Monitor(out_dir, rank=rank)
     metadata = metadata_for(config, config.data.tokenizer_path)
 
+    micro_batches = training.gradient_accumulation_steps
+
     if world_size > 1:
         sampler = DistributedSampler(
             train_dataset,
@@ -264,16 +266,13 @@ def train(
                     metadata=metadata,
                 )
                 print(
-                    f"step {global_step}: new best val_ppl={val_ppl:.4f} "
-                    f"(checkpoints/best.pt)",
+                    f"step {global_step}: new best val_ppl={val_ppl:.4f} (checkpoints/best.pt)",
                     flush=True,
                 )
             if tokenizer is not None:
                 samples_dir = Path(out_dir) / "samples"
                 samples_dir.mkdir(parents=True, exist_ok=True)
-                text = sample_text(
-                    model, tokenizer, "বাংলা", max_new_tokens=16, device=device
-                )
+                text = sample_text(model, tokenizer, "বাংলা", max_new_tokens=16, device=device)
                 (samples_dir / f"step-{global_step:07d}.txt").write_text(
                     text + "\n", encoding="utf-8"
                 )
@@ -289,33 +288,53 @@ def train(
                 metadata=metadata,
             )
 
+    def micro_step(input_ids: torch.Tensor, labels: torch.Tensor) -> None:
+        nonlocal accumulated_loss, accumulated_tokens
+        input_ids = input_ids.to(device)
+        labels = labels.to(device)
+        with _autocast_context(training, device):
+            loss = model(input_ids=input_ids, labels=labels)["loss"] / micro_batches
+        if scaler is not None:
+            scaler.scale(loss).backward()
+        else:
+            loss.backward()
+        accumulated_loss += loss.item()
+        accumulated_tokens += input_ids.numel()
+
+    def epoch_perm(epoch: int) -> torch.Tensor:
+        if not training.shuffle:
+            return torch.arange(len(train_dataset))
+        g = torch.Generator()
+        g.manual_seed(training.seed + rank + epoch)
+        return torch.randperm(len(train_dataset), generator=g)
+
     while global_step < stop_step:
-micro_batches = training.gradient_accumulation_steps
-
-    if world_size > 1:
+        if world_size > 1:
+            epoch += 1
             sampler.set_epoch(epoch)
-        epoch += 1
-        any_batch = False
-        for micro_count, (input_ids, labels) in enumerate(train_loader, start=1):
-            any_batch = True
-            input_ids = input_ids.to(device)
-            labels = labels.to(device)
-            with _autocast_context(training, device):
-                loss = model(input_ids=input_ids, labels=labels)["loss"] / micro_batches
-            if scaler is not None:
-                scaler.scale(loss).backward()
-            else:
-                loss.backward()
-            accumulated_loss += loss.item()
-            accumulated_tokens += input_ids.numel()
-
-            if micro_count % micro_batches == 0:
+            any_batch = False
+            for micro_count, (input_ids, labels) in enumerate(train_loader, start=1):
+                any_batch = True
+                micro_step(input_ids, labels)
+                if micro_count % micro_batches == 0:
+                    finalize_step()
+                    if global_step >= stop_step:
+                        break
+            if not any_batch:
+                break
+            if accumulated_loss > 0:
                 finalize_step()
-                if global_step >= stop_step:
-                    break
-        if not any_batch:
-            break
-        if accumulated_loss > 0:
+        else:
+            if steps_per_epoch == 0:
+                break
+            epoch = global_step // steps_per_epoch
+            perm = epoch_perm(epoch)
+            off = (global_step % steps_per_epoch) * macro
+            for mb in range(micro_batches):
+                indices = perm[
+                    off + mb * training.batch_size : off + (mb + 1) * training.batch_size
+                ].tolist()
+                micro_step(*_collate_batch(train_dataset, indices))
             finalize_step()
 
     if is_main_rank(rank) and latest_checkpoint(out_dir) is None:

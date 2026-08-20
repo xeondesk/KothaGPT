@@ -149,6 +149,8 @@ def tokenize_corpus(
     out_root: str | Path,
     force: bool = False,
 ) -> dict[str, Any]:
+    if block_size < 1:
+        raise ValueError(f"block_size must be positive, got {block_size}")
     corpus_root = _resolve_corpus(corpus)
     manifest = json.loads((corpus_root / "MANIFEST.json").read_text(encoding="utf-8"))
     train_dir = _resolve_split_dir(corpus_root, manifest["files"]["train_dir"])

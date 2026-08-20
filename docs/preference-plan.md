@@ -16,7 +16,7 @@ Guiding principles:
   synthetic/rule-based judges, verify them, then hand-label a small high-quality
   set. Every record carries `{source, annotator, verified}`.
 - Safety is a release gate, not an afterthought: alignment runs cannot ship
-  until the safety/refusal evals (WS-7/WS-9) pass.
+  until the safety/refusal evals (WS-6/WS-9) pass.
 - Every run is reproducible: pinned to (SFT checkpoint, preference data version,
   reward model, DPO config) and recorded in `ml/preference/artifacts/<run-id>/`.
 - PyTorch stays a training-only dependency; never import `torch` from the API
@@ -170,7 +170,7 @@ Goal: calibrated refusal — refuse the harmful, answer the safe.
 
 ## Sequencing & dependencies
 
-```
+```text
 WS-1 preference dataset ──> WS-2 reward model ──> WS-3 DPO (needs RM sampling)
                                │                        │
 WS-6 safety eval ── WS-9 refusal eval ──────────────────┤  (release gates)

@@ -3,9 +3,10 @@ from __future__ import annotations
 
 import json
 import random
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 import torch
 from torch.utils.data import Dataset
@@ -20,7 +21,7 @@ def _text(value: Any, field_name: str, *, required: bool = False) -> str:
             raise ValueError(f"{field_name} is required")
         return ""
     if not isinstance(value, str):
-        raise ValueError(f"{field_name} must be a string")
+        raise TypeError(f"{field_name} must be a string")
     return value.strip()
 
 
@@ -37,9 +38,9 @@ class InstructionRecord:
     metadata: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
-    def from_dict(cls, raw: dict[str, Any]) -> "InstructionRecord":
+    def from_dict(cls, raw: dict[str, Any]) -> InstructionRecord:
         if not isinstance(raw, dict):
-            raise ValueError("instruction record must be an object")
+            raise TypeError("instruction record must be an object")
         messages_raw = raw.get("messages") or []
         if messages_raw and (not isinstance(messages_raw, list) or not all(isinstance(m, dict) for m in messages_raw)):
             raise ValueError("messages must be a list of objects")
@@ -89,7 +90,7 @@ def load_jsonl(path: str | Path) -> list[InstructionRecord]:
             continue
         try:
             records.append(InstructionRecord.from_dict(json.loads(line)))
-        except (json.JSONDecodeError, ValueError) as exc:
+        except (json.JSONDecodeError, TypeError, ValueError) as exc:
             raise ValueError(f"invalid instruction record at line {line_number}: {exc}") from exc
     if not records:
         raise ValueError(f"no instruction records found in {path}")

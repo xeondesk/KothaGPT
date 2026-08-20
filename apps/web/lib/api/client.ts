@@ -63,6 +63,40 @@ async function request<T>(
   return body as T;
 }
 
+async function requestStream(
+  path: string,
+  options: RequestOptions = {},
+  init: Omit<RequestInit, "signal" | "headers"> & {
+    headers?: Record<string, string>;
+  } = {}
+): Promise<ReadableStream<Uint8Array>> {
+  const headers: Record<string, string> = {
+    ...options.headers,
+    ...(init.headers ?? {}),
+  };
+  const token = getAccessToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const response = await fetch(`${BASE_URL}${path}`, {
+    ...init,
+    headers,
+    signal: options.signal,
+  });
+
+  if (!response.ok || !response.body) {
+    const text = await response.text();
+    const body = text ? safeParse(text) : null;
+    throw new ApiClientError(
+      (body as ApiError)?.message ?? response.statusText,
+      response.status,
+      (body as ApiError)?.code,
+      (body as ApiError)?.details
+    );
+  }
+
+  return response.body;
+}
+
 function safeParse(text: string): unknown {
   try {
     return JSON.parse(text);
@@ -87,6 +121,22 @@ export function post<T>(
     headers["Content-Type"] = "application/json";
   }
   return request<T>(path, options, {
+    method: "POST",
+    headers,
+    body: body === undefined ? undefined : serialize(body),
+  });
+}
+
+function postStream(
+  path: string,
+  body?: Body,
+  options?: RequestOptions
+): Promise<ReadableStream<Uint8Array>> {
+  const headers: Record<string, string> =
+    body !== undefined && !(body instanceof FormData)
+      ? { "Content-Type": "application/json" }
+      : {};
+  return requestStream(path, options, {
     method: "POST",
     headers,
     body: body === undefined ? undefined : serialize(body),
@@ -152,5 +202,5 @@ export async function toResult<T>(promise: Promise<T>): Promise<ApiResult<T>> {
   }
 }
 
-export { BASE_URL, request };
+export { BASE_URL, request, postStream };
 export type { ApiError };

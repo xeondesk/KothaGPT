@@ -18,7 +18,7 @@ from pathlib import Path
 
 from ml.tokenizer import load_tokenizer, train_bpe, train_unigram
 from ml.tokenizer.benchmark import GATE_THRESHOLDS, SAMPLE_TEXTS, check_benchmark, run_benchmark
-from ml.tokenizer.corpus import load_corpus
+from ml.tokenizer.corpus import iter_corpus, load_corpus
 from ml.tokenizer.transliterate import latin_to_bangla
 from ml.tokenizer.vocab import coverage_report, export_vocab, version_id
 
@@ -340,24 +340,23 @@ def _cmd_freeze(args: argparse.Namespace) -> int:
     if args.sample_stride < 1:
         raise ValueError("--sample-stride must be >= 1")
 
-    raw = load_corpus(args.corpus)
-    if not raw:
-        raise ValueError("empty corpus")
-    total_docs = len(raw)
-    print(f"[freeze] loaded {total_docs:,} docs", flush=True)
-
-    # Single pass: normalize each doc exactly once, hash it into the corpus
-    # digest, and keep only every Nth doc for training. This bounds peak memory
-    # to the sample rather than the full corpus.
+    # Single streaming pass: normalize each doc exactly once, hash it into the
+    # corpus digest, and keep only every Nth doc for training. Peak memory is
+    # bounded to the training sample rather than the full raw corpus.
     digest_h = hashlib.sha256()
     train_docs: list[str] = []
-    for i, doc in enumerate(raw):
+    total_docs = 0
+    for i, doc in enumerate(iter_corpus(args.corpus)):
+        total_docs += 1
         ndoc = norm.normalize_text(doc)
         digest_h.update(ndoc.encode("utf-8"))
         digest_h.update(b"\x00")
         if i % args.sample_stride == 0:
             train_docs.append(ndoc)
-    del raw
+    if total_docs == 0:
+        raise ValueError("empty corpus")
+    print(f"[freeze] loaded {total_docs:,} docs", flush=True)
+
     train_docs = [doc for doc in train_docs if doc.strip()]
     if not train_docs:
         raise ValueError("empty corpus after normalization")

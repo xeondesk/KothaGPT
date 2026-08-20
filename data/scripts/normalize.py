@@ -1,5 +1,6 @@
 from pathlib import Path
 
+
 def normalize(text: str) -> str:
     return " ".join(text.split())
 

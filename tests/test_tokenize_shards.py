@@ -131,6 +131,16 @@ def test_idempotent(tokenized, tmp_path):
     assert result2["tokenizer_digest"] == m2["tokenizer_digest"]
 
 
+def test_rejects_non_positive_block_size(tmp_path):
+    base = tmp_path / "base"
+    corpus = _make_corpus(base / "corpus")
+    tok = _make_tokenizer(base / "tok")
+    for bad in (0, -1, -32):
+        with pytest.raises(ValueError):
+            tokenize_corpus(corpus, tok, block_size=bad, out_root=base / f"out{bad}")
+    assert not any((base / "corpus").rglob("out*"))
+
+
 def test_matches_trainer_build_blocks(tokenized):
     """Blocks must equal ml/trainer/dataset.build_blocks over the train split."""
     pytest.importorskip("torch")

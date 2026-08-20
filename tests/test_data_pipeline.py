@@ -9,6 +9,13 @@ from data.pipeline import dedup, io, normalize, quality, split
 from data.pipeline.config import PipelineConfig, run_pipeline
 
 
+def _read_shard_text(path) -> str:
+    if str(path).endswith(".gz"):
+        with gzip.open(path, "rt", encoding="utf-8") as fh:
+            return fh.read()
+    return path.read_text(encoding="utf-8")
+
+
 def test_unicode_normalize_keeps_bangla_conjuncts():
     text = "বাংলা ভাষা\u200b\u200dকথা\u00a0লেখা"  # nbsp + zwsp + zwj
     out = normalize.unicode_normalize(text)
@@ -99,10 +106,7 @@ def test_full_pipeline_pii_mask_mode_keeps_doc(tmp_path):
         (version_dir / "validation").glob("*.jsonl*")
     )
     assert shards
-    contents = "".join(
-        gzip.open(s, "rt", encoding="utf-8").read() if s.suffix == ".gz" else s.read_text(encoding="utf-8")
-        for s in shards
-    )
+    contents = "".join(_read_shard_text(s) for s in shards)
     assert "user@example.com" not in contents
     assert quality.PII_MASK in contents
 

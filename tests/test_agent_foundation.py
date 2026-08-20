@@ -26,3 +26,12 @@ def test_agent_denies_unapproved_high_risk_tool() -> None:
 def test_function_call_parser_accepts_json_arguments() -> None:
     call = parse_function_call('{"name":"search","arguments":"{\\"query\\":\\"docs\\"}"}')
     assert call.arguments == {"query": "docs"}
+
+
+def test_agent_handles_malformed_function_call_gracefully() -> None:
+    registry = ToolRegistry()
+    registry.register(ToolSpec("run", "Execute", {"properties": {}}), lambda: "done")
+    gate = PermissionGate({"run"})
+    output, events = run_agent("go", decide=lambda *_: '{"name":123}', registry=registry, permissions=gate, max_steps=2)
+    assert "safely" in output
+    assert events[-1].kind == "error"

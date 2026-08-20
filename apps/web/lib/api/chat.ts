@@ -1,4 +1,4 @@
-import { get, post, del } from "@/lib/api/client";
+import { get, post, del, postStream } from "@/lib/api/client";
 import type { Paginated } from "@/types/api";
 import type {
   ChatMessage,
@@ -31,12 +31,12 @@ export const chatApi: ChatApi = {
   deleteConversation: (id) => del<void>(`/v1/conversations/${id}`),
   chat: (request) => post<ChatMessage>("/v1/chat", request),
   stream: async (request, onEvent, signal) => {
-    const response = await post<ReadableStream<Uint8Array>>(
+    const stream = await postStream(
       "/v1/chat",
       { ...request, stream: true },
       { signal }
     );
-    const reader = response.getReader();
+    const reader = stream.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
 

@@ -17,7 +17,8 @@ Metrics per set:
 from __future__ import annotations
 
 import statistics
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from .base import BaseTokenizer
 from .transliterate import latin_to_bangla

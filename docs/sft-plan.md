@@ -35,7 +35,7 @@ Guiding principles:
 | Preference tuning | `ml/preference/` exists but is empty | out of scope (follow-up plan) |
 | Data pipeline | `data/pipeline/` normalize → quality → spam → toxic → PII → copyright → dedup → split → version; `data/synthetic/` + instruction shards (`data/processed/<ver>/instruction/`) planned in `docs/dataset-pipeline-plan.md` (A8) | no instruction shards produced yet; no role/content schema module |
 | Eval | `evals/run.py` + `evals/suites/bangla.yaml` (QA/translation/summarization/generation) + `evals/results/` reports | no SFT/chat eval, no instruction-following metrics, no base-vs-SFT comparisons |
-| Tokenizer | frozen 16k BPE (`ml/tokenizer/artifacts/best/`, GPT-2-style `▁`) | no chat special tokens (e.g. `<|im_start|>`) verified in vocab |
+| Tokenizer | frozen 16k BPE (`ml/tokenizer/artifacts/best/`, GPT-2-style `▁`) | no chat special tokens (e.g. `<&#124;im_start&#124;>`) verified in vocab |
 | Configs | `ml/configs/small.yaml` (model/training/data) | no SFT configs (sft.yaml, dataset mix, template) |
 
 ---
@@ -212,7 +212,7 @@ Goal: a release gate that measures what tuning bought, per task family.
 
 ## Sequencing & dependencies
 
-```
+```text
 WS-1 instruction dataset ──> WS-2 SFT pipeline (CPU smoke gates GPU work)
                                   │
 WS-7 reasoning data ──────────────┤

@@ -169,23 +169,24 @@ export function CreateJobDialog({
           </div>
 
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-            <Field label="Batch size">
-              <Input type="number" {...register("batchSize")} />
+            <Field label="Batch size" htmlFor="job-batch-size">
+              <Input id="job-batch-size" type="number" {...register("batchSize")} />
             </Field>
-            <Field label="Learning rate">
-              <Input type="number" step="0.0001" {...register("learningRate")} />
+            <Field label="Learning rate" htmlFor="job-learning-rate">
+              <Input id="job-learning-rate" type="number" step="0.0001" {...register("learningRate")} />
             </Field>
-            <Field label="Context length">
-              <Input type="number" {...register("contextLength")} />
+            <Field label="Context length" htmlFor="job-context-length">
+              <Input id="job-context-length" type="number" {...register("contextLength")} />
             </Field>
-            <Field label="GPUs">
-              <Input type="number" {...register("gpuCount")} />
+            <Field label="GPUs" htmlFor="job-gpu-count">
+              <Input id="job-gpu-count" type="number" {...register("gpuCount")} />
             </Field>
-            <Field label="Grad accumulation">
-              <Input type="number" {...register("gradAccumulation")} />
+            <Field label="Grad accumulation" htmlFor="job-grad-accumulation">
+              <Input id="job-grad-accumulation" type="number" {...register("gradAccumulation")} />
             </Field>
-            <Field label="Precision">
+            <Field label="Precision" htmlFor="job-precision">
               <select
+                id="job-precision"
                 className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
                 {...register("precision")}
               >
@@ -210,10 +211,20 @@ export function CreateJobDialog({
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({
+  label,
+  htmlFor,
+  children,
+}: {
+  label: string;
+  htmlFor?: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="flex flex-col gap-2">
-      <Label className="text-xs text-muted-foreground">{label}</Label>
+      <Label htmlFor={htmlFor} className="text-xs text-muted-foreground">
+        {label}
+      </Label>
       {children}
     </div>
   );

@@ -26,6 +26,7 @@ export function DatasetUploadDialog({
   const [name, setName] = React.useState("");
   const [file, setFile] = React.useState<File | null>(null);
   const [dragging, setDragging] = React.useState(false);
+  const fileRef = React.useRef<HTMLInputElement>(null);
   const upload = useUploadDataset();
 
   const reset = () => {
@@ -85,15 +86,21 @@ export function DatasetUploadDialog({
               <>
                 <p className="text-sm">
                   Drag &amp; drop a file, or{" "}
-                  <label className="cursor-pointer text-primary hover:underline">
+                  <Button
+                    type="button"
+                    variant="link"
+                    className="px-0"
+                    onClick={() => fileRef.current?.click()}
+                  >
                     browse
-                    <input
-                      type="file"
-                      className="hidden"
-                      accept=".jsonl,.json,.csv,.parquet,.txt,.gz"
-                      onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-                    />
-                  </label>
+                  </Button>
+                  <input
+                    ref={fileRef}
+                    type="file"
+                    className="hidden"
+                    accept=".jsonl,.json,.csv,.parquet,.txt,.gz"
+                    onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                  />
                 </p>
                 <p className="text-xs text-muted-foreground">
                   Max 10 GB per file

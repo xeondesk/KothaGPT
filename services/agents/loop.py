@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from typing import Any
 
 from .function_calling import parse_function_call
 from .permissions import PermissionGate
@@ -33,7 +34,7 @@ def run_agent(message: str, *, decide: Callable[[str, list[AgentEvent]], str | N
             result = registry.invoke(call.name, call.arguments, allowed=permissions.allowed_tools)
             events.append(AgentEvent("tool_result", {"name": call.name, "result": result}))
             prompt = str(result)
-        except (ValueError, KeyError, PermissionError) as exc:
+        except (TypeError, ValueError, KeyError, PermissionError) as exc:
             events.append(AgentEvent("error", {"error": str(exc)}))
             return "I could not safely execute that request.", events
     events.append(AgentEvent("limit", {"max_steps": max_steps}))

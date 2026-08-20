@@ -9,7 +9,8 @@ from torch.utils.data import DataLoader
 
 from ml.models import KothaGPT, load_config
 from ml.tokenizer import load_tokenizer
-from .dataset import InstructionCollator, InstructionDataset, load_jsonl, split_records
+
+from .dataset import InstructionCollator, InstructionDataset, load_jsonl
 
 
 def run_sft(model: KothaGPT, records, tokenizer, *, device="cpu", max_steps=1, batch_size=1, learning_rate=3e-4, max_length=512):

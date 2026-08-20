@@ -294,7 +294,7 @@ Goal: measure what pre-training bought.
 
 ## Sequencing & dependencies
 
-```
+```text
 WS-1 tokenize pipeline ──> WS-2 shards ──> WS-3 loader optimize
                                               │
 WS-4 GPU env ─────────────────────────────────┤

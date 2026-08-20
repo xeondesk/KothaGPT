@@ -221,7 +221,7 @@ Goal: protect the runtime from burst and abuse.
 
 ## Sequencing & dependencies
 
-```
+```text
 WS-1 engine ──> WS-2 KV cache ──> WS-3 streaming
         │                        └─> WS-4 batching
         ├──> WS-5 quantization ──> WS-6 CPU ──> WS-7 GPU

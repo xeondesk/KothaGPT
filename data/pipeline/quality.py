@@ -259,7 +259,7 @@ def quality_filter(
         pii = contains_pii(text)
         if pii:
             reasons.append(f"pii: {','.join(pii)}")
-    keep_len, len_reasons = length_filter(
+    _, len_reasons = length_filter(
         text, min_chars=min_chars, max_chars=max_chars, min_words=min_words
     )
     reasons.extend(len_reasons)

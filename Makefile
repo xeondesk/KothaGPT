@@ -38,6 +38,15 @@ data-validate:
 	@echo "Running data validation checks..."
 	python -m data.pipeline.cli version
 
+# WS-1/WS-2: pre-tokenize the processed corpus into uint32 block shards so
+# training never re-tokenizes. Idempotent; run again to regenerate.
+data-tokenize:
+	python -m ml.tokenize_shards \
+		--corpus $$(cat data/processed/CURRENT 2>/dev/null) \
+		--tokenizer ml/tokenizer/artifacts/best \
+		--block-size 4096 \
+		--out data/tokenized
+
 tokenizer-build:
 	@echo "Building tokenizer artifacts..."
 	python -m ml.tokenizer.cli train \

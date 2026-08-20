@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"nhooyr.io/websocket"
+	"github.com/coder/websocket"
 )
 
 // WebSocketClient is a JSON-over-WebSocket client for the /v1/ws endpoint.

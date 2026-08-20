@@ -135,6 +135,13 @@ def _tokenize_split(
     }
 
 
+def _resolve_split_dir(corpus_root: Path, rel: str) -> Path:
+    for cand in (corpus_root / rel, corpus_root.parent / rel):
+        if cand.is_dir():
+            return cand
+    raise FileNotFoundError(f"split dir not found: {rel} under {corpus_root}")
+
+
 def tokenize_corpus(
     corpus: str | Path,
     tokenizer_path: str | Path,
@@ -144,8 +151,8 @@ def tokenize_corpus(
 ) -> dict[str, Any]:
     corpus_root = _resolve_corpus(corpus)
     manifest = json.loads((corpus_root / "MANIFEST.json").read_text(encoding="utf-8"))
-    train_dir = corpus_root / manifest["files"]["train_dir"]
-    val_dir = corpus_root / manifest["files"]["validation_dir"]
+    train_dir = _resolve_split_dir(corpus_root, manifest["files"]["train_dir"])
+    val_dir = _resolve_split_dir(corpus_root, manifest["files"]["validation_dir"])
     tok_dir = Path(tokenizer_path)
     tok_file = tok_dir / "tokenizer.json"
     if not tok_file.is_file():

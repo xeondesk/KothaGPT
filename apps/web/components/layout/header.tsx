@@ -2,7 +2,10 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Menu, Search } from "lucide-react";
+import { authApi } from "@/lib/api/auth";
+import { setAccessToken } from "@/lib/api/client";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -19,6 +22,17 @@ import { useUIStore } from "@/stores/ui-store";
 
 export function Header() {
   const setCommandOpen = useUIStore((s) => s.setCommandOpen);
+  const router = useRouter();
+
+  const handleSignOut = async () => {
+    try {
+      await authApi.logout();
+    } finally {
+      setAccessToken(null);
+      router.push("/");
+      router.refresh();
+    }
+  };
   return (
     <header className="sticky top-0 z-40 flex h-14 items-center gap-4 border-b border-border bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <Sheet>
@@ -75,10 +89,19 @@ export function Header() {
             </div>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
-          <DropdownMenuItem>Settings</DropdownMenuItem>
-          <DropdownMenuItem>API Keys</DropdownMenuItem>
+          <DropdownMenuItem asChild>
+            <Link href="/dashboard/settings">Settings</Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem asChild>
+            <Link href="/dashboard/api-keys">API Keys</Link>
+          </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem className="text-destructive">Sign out</DropdownMenuItem>
+          <DropdownMenuItem
+            className="text-destructive"
+            onClick={handleSignOut}
+          >
+            Sign out
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     </header>

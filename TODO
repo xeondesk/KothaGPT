@@ -32,16 +32,16 @@ Wave A — language preprocessing (DONE, commit f469c87)
 - [x] WS-5 Transliteration — bn<->la transliterator + golden fixture + CLI `--transliterate` (`ml/tokenizer/transliterate.py`)
 - [x] Docs: `docs/bangla-normalization.md`, `docs/bangla-transliteration.md`
 
-Wave B — tokenizer freeze (pending)
+Wave B — tokenizer freeze (DONE, production vocab 1.0.0+7bf1a6e740e3.5d53c485)
 
-- [ ] WS-1 Tokenizer create/select — experiments matrix + baselines + selection report (`ml/tokenizer/artifacts/`)
-- [ ] WS-6 Vocabulary — freeze `vocab.json` + coverage report + versioning
-- [ ] WS-7 Token efficiency — more benchmark sets + unk/decode-fidelity metrics + CI gate
+- [x] WS-1 Tokenizer create/select — experiments matrix + baselines + selection report (`ml/tokenizer/artifacts/`)
+- [x] WS-6 Vocabulary — frozen 16k BPE vocab on Bangla Wikipedia corpus: `ml/tokenizer/vocab/` + versioning (98.48% script-char coverage, 0% unk)
+- [x] WS-7 Token efficiency — translit/digits/names/social stress sets + unk/decode-fidelity metrics + CI gate (gate passes: tpc 0.3361, fidelity 100%)
 
-Wave C — evaluation (pending)
+Wave C — evaluation (DONE)
 
-- [ ] WS-8 Benchmark dataset — `data/benchmarks/bangla/v1/` (QA/translation/summarization JSONL)
-- [ ] WS-9 Language evaluation — `evals/run.py` runner + metrics + report
+- [x] WS-8 Benchmark dataset — `data/benchmarks/bangla/v1/` (QA 576 / translation 1120 / summarization 108 / generation 26 JSONL)
+- [x] WS-9 Language evaluation — `evals/run.py` runner + metrics + report (`evals/results/2026-08-20-bangla.*`)
 
 Roadmap structure (for each milestone)
 

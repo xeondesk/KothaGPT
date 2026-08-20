@@ -235,9 +235,12 @@ transliteration) is implemented and tested (`tests/test_bangla_foundation.py`,
    `ml/tokenizer/DECISION.md`. The CI freeze runs on the 12-doc fixture corpus;
    `--sample-stride N` keeps training memory-safe on the real corpus.
 
-Remaining (corpus-dependent / training-env):
+Remaining:
 
-- Retrain + freeze at the production vocab size (16k/32k/50k) on the full
-  normalized Wikipedia corpus (`make tokenizer-freeze --vocab-size N`).
+- **Done (2026-08-20):** production 16k BPE freeze on the normalized Bangla
+  Wikipedia corpus (133,275 docs; stride-4 sample) → `ml/tokenizer/vocab/`
+  version `1.0.0+7bf1a6e740e3.5d53c485`, 98.48% script-char coverage, 0% unk,
+  tpc 0.3361, decode fidelity 100% (gate passed).
+- Re-freeze at 32k / 50k vocab sizes once the 16k baseline is stable.
 - Compare against sentencepiece/tokenizers reference baselines (dev-only) and
   record them in `DECISION.md`.

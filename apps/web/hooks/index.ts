@@ -8,6 +8,7 @@ import { datasetsApi } from "@/lib/api/datasets";
 import { trainingApi } from "@/lib/api/training";
 import { knowledgeApi } from "@/lib/api/knowledge";
 import { agentsApi } from "@/lib/api/agents";
+import type { TrainingJob } from "@/types/training";
 
 export function useMe() {
   return useQuery({ queryKey: ["auth", "me"], queryFn: authApi.me });
@@ -79,6 +80,50 @@ export function useUploadDataset() {
 
 export function useTrainingJobs() {
   return useQuery({ queryKey: ["training"], queryFn: trainingApi.list });
+}
+
+export function useTrainingJob(id: string) {
+  return useQuery({
+    queryKey: ["training", id],
+    queryFn: () => trainingApi.get(id),
+    enabled: !!id,
+    refetchInterval: (query) => {
+      const job = query.state.data as TrainingJob | undefined;
+      return job && job.status === "running" ? 3000 : false;
+    },
+  });
+}
+
+export function useTrainingCheckpoints(id: string) {
+  return useQuery({
+    queryKey: ["training", id, "checkpoints"],
+    queryFn: () => trainingApi.checkpoints(id),
+    enabled: !!id,
+  });
+}
+
+export function useCreateTrainingJob() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: trainingApi.create,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["training"] }),
+  });
+}
+
+export function useTrainingControl(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ action }: { action: "start" | "pause" | "stop" }) =>
+      action === "start"
+        ? trainingApi.start(id)
+        : action === "pause"
+          ? trainingApi.pause(id)
+          : trainingApi.stop(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["training"] });
+      qc.invalidateQueries({ queryKey: ["training", id] });
+    },
+  });
 }
 
 export function useKnowledgeBases() {

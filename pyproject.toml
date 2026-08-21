@@ -3,6 +3,9 @@ name = "kothagpt"
 version = "0.1.0"
 description = "Bangla-first AI platform"
 requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115",
+]
 
 [tool.vercel]
 entrypoint = "services.api.app:app"

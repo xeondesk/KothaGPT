@@ -21,9 +21,15 @@ class Monitor:
     def log(self, step: int, metrics: dict[str, Any]) -> None:
         if self.rank != 0:
             return
-        record = {"step": step, "elapsed_s": round(time.monotonic() - self.start_time, 2), **metrics}
+        record = {
+            "step": step,
+            "elapsed_s": round(time.monotonic() - self.start_time, 2),
+            **metrics,
+        }
         self.out_dir.mkdir(parents=True, exist_ok=True)
         with (self.out_dir / "history.jsonl").open("a", encoding="utf-8") as fh:
             fh.write(json.dumps(record, ensure_ascii=False) + "\n")
-        parts = ", ".join(f"{k}={v:.4f}" if isinstance(v, float) else f"{k}={v}" for k, v in metrics.items())
+        parts = ", ".join(
+            f"{k}={v:.4f}" if isinstance(v, float) else f"{k}={v}" for k, v in metrics.items()
+        )
         print(f"step {step}: {parts}", flush=True)

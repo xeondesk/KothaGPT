@@ -1,4 +1,5 @@
 """Completion-only supervised fine-tuning entry point."""
+
 from __future__ import annotations
 
 import argparse
@@ -13,11 +14,26 @@ from ml.tokenizer import load_tokenizer
 from .dataset import InstructionCollator, InstructionDataset, load_jsonl
 
 
-def run_sft(model: KothaGPT, records, tokenizer, *, device="cpu", max_steps=1, batch_size=1, learning_rate=3e-4, max_length=512):
+def run_sft(
+    model: KothaGPT,
+    records,
+    tokenizer,
+    *,
+    device="cpu",
+    max_steps=1,
+    batch_size=1,
+    learning_rate=3e-4,
+    max_length=512,
+):
     """Run a small, deterministic completion-only SFT loop and return metrics."""
     dataset = InstructionDataset(records, tokenizer, max_length)
     pad_id = getattr(tokenizer, "vocab", {}).get("<pad>", 3)
-    loader = DataLoader(dataset, batch_size=batch_size, shuffle=False, collate_fn=InstructionCollator(pad_id, max_length))
+    loader = DataLoader(
+        dataset,
+        batch_size=batch_size,
+        shuffle=False,
+        collate_fn=InstructionCollator(pad_id, max_length),
+    )
     model.to(device).train()
     optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
     steps, total = 0, 0.0
@@ -26,7 +42,9 @@ def run_sft(model: KothaGPT, records, tokenizer, *, device="cpu", max_steps=1, b
         for batch in loader:
             progressed = True
             optimizer.zero_grad(set_to_none=True)
-            outputs = model(input_ids=batch["input_ids"].to(device), labels=batch["labels"].to(device))
+            outputs = model(
+                input_ids=batch["input_ids"].to(device), labels=batch["labels"].to(device)
+            )
             loss = outputs["loss"]
             loss.backward()
             optimizer.step()
@@ -53,9 +71,19 @@ def main() -> None:
     config = load_config(args.config)
     tokenizer = load_tokenizer(args.tokenizer)
     records = load_jsonl(args.train)
-    metrics = run_sft(KothaGPT(config.model), records, tokenizer, device=args.device, max_steps=args.max_steps, batch_size=args.batch_size, max_length=config.model.max_position_embeddings)
+    metrics = run_sft(
+        KothaGPT(config.model),
+        records,
+        tokenizer,
+        device=args.device,
+        max_steps=args.max_steps,
+        batch_size=args.batch_size,
+        max_length=config.model.max_position_embeddings,
+    )
     Path(args.out).mkdir(parents=True, exist_ok=True)
-    (Path(args.out) / "metrics.json").write_text(__import__("json").dumps(metrics, indent=2) + "\n", encoding="utf-8")
+    (Path(args.out) / "metrics.json").write_text(
+        __import__("json").dumps(metrics, indent=2) + "\n", encoding="utf-8"
+    )
     print(metrics)
 
 

@@ -179,9 +179,7 @@ def run_pipeline(cfg: PipelineConfig) -> dict:
 
     # 6. Toxic-content filter.
     safe = []
-    toxic_classifier = (
-        toxic.load_classifier(cfg.toxic_classifier) if cfg.toxic_classifier else None
-    )
+    toxic_classifier = toxic.load_classifier(cfg.toxic_classifier) if cfg.toxic_classifier else None
     for record in clean:
         if cfg.check_toxic:
             keep, _toxic_reasons = toxic.toxic_gate(
@@ -200,9 +198,7 @@ def run_pipeline(cfg: PipelineConfig) -> dict:
             cfg.dedup_state_path
         )
     elif cfg.dedup_bloom:
-        exact_store = dedup.BloomFilter(
-            cfg.dedup_bloom_capacity, fp_rate=cfg.dedup_bloom_fp_rate
-        )
+        exact_store = dedup.BloomFilter(cfg.dedup_bloom_capacity, fp_rate=cfg.dedup_bloom_fp_rate)
     else:
         exact_store = set()
     deduped, dedup_counts = dedup.deduplicate_with_stats(

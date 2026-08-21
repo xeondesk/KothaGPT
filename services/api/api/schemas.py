@@ -196,6 +196,17 @@ class AgentRun(BaseModel):
 
 
 class WsEnvelope(BaseModel):
-    type: Literal["chat", "ping", "agents.list", "agents.create", "agents.run", "tools.list", "tools.invoke", "embed", "rerank", "models.list"]
+    type: Literal[
+        "chat",
+        "ping",
+        "agents.list",
+        "agents.create",
+        "agents.run",
+        "tools.list",
+        "tools.invoke",
+        "embed",
+        "rerank",
+        "models.list",
+    ]
     id: str | None = None
     payload: dict[str, Any] = Field(default_factory=dict)

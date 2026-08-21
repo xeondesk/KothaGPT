@@ -31,9 +31,7 @@ def lr_multiplier(step: int, training: TrainingConfig) -> float:
     """Schedule multiplier for a given macro-step (shared by build/curve)."""
     if training.warmup_steps > 0 and step < training.warmup_steps:
         return (step + 1) / training.warmup_steps
-    progress = (step - training.warmup_steps) / max(
-        training.max_steps - training.warmup_steps, 1
-    )
+    progress = (step - training.warmup_steps) / max(training.max_steps - training.warmup_steps, 1)
     progress = min(max(progress, 0.0), 1.0)
     floor = min_lr_fraction(training)
     if training.lr_schedule == "linear":
@@ -53,9 +51,16 @@ def schedule_points(training: TrainingConfig, max_points: int = 1000) -> list[tu
     """Sample ``(step, lr)`` along the full schedule (bounded to ``max_points``)."""
     steps = range(training.max_steps + 1)
     stride = max(1, (training.max_steps + 1) // max_points)
-    points = [(step, training.learning_rate * lr_multiplier(step, training)) for step in steps[::stride]]
+    points = [
+        (step, training.learning_rate * lr_multiplier(step, training)) for step in steps[::stride]
+    ]
     if points[-1][0] != training.max_steps:
-        points.append((training.max_steps, training.learning_rate * lr_multiplier(training.max_steps, training)))
+        points.append(
+            (
+                training.max_steps,
+                training.learning_rate * lr_multiplier(training.max_steps, training),
+            )
+        )
     return points
 
 

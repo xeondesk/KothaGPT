@@ -24,9 +24,15 @@ class ToolRegistry:
         self._tools[spec.name] = (spec, handler)
 
     def list(self) -> list[ToolSpec]:
-        return [spec for spec, _ in sorted(self._tools.values(), key=lambda item: item[0].name) if spec.enabled]
+        return [
+            spec
+            for spec, _ in sorted(self._tools.values(), key=lambda item: item[0].name)
+            if spec.enabled
+        ]
 
-    def invoke(self, name: str, arguments: dict[str, Any], *, allowed: set[str] | None = None) -> Any:
+    def invoke(
+        self, name: str, arguments: dict[str, Any], *, allowed: set[str] | None = None
+    ) -> Any:
         if name not in self._tools:
             raise KeyError(f"unknown tool: {name}")
         spec, handler = self._tools[name]

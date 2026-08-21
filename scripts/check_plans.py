@@ -228,7 +228,10 @@ def _covered(item: str, plan_texts: list[str]) -> bool:
     all_toks = [t for t in _item_tokens(item) if not _LATIN.fullmatch(t)]
     for plan_text in plan_texts:
         plan_tokens = set(_item_tokens(plan_text))
-        if all_toks and sum(1 for t in all_toks if t in plan_tokens) / len(all_toks) >= COVERAGE_THRESHOLD:
+        if (
+            all_toks
+            and sum(1 for t in all_toks if t in plan_tokens) / len(all_toks) >= COVERAGE_THRESHOLD
+        ):
             return True
     return False
 
@@ -244,7 +247,11 @@ def verify_coverage(root: Path) -> list[str]:
     for line in checklist.read_text(encoding="utf-8").splitlines():
         m = PHASE_RE.match(line)
         if m:
-            current = {"title": m.group(1).strip(), "plans": [p.strip() for p in m.group(2).split(",")], "items": []}
+            current = {
+                "title": m.group(1).strip(),
+                "plans": [p.strip() for p in m.group(2).split(",")],
+                "items": [],
+            }
             phases.append(current)
             continue
         im = ITEM_RE.match(line)
@@ -261,7 +268,9 @@ def verify_coverage(root: Path) -> list[str]:
             else:
                 missing_plans.append(plan)
         if missing_plans:
-            problems.append(f"checklist phase '{phase['title']}' maps to missing plan(s): {missing_plans}")
+            problems.append(
+                f"checklist phase '{phase['title']}' maps to missing plan(s): {missing_plans}"
+            )
             continue
 
         uncovered = [item for item in phase["items"] if not _covered(item, plan_texts)]

@@ -5,7 +5,7 @@ bootstrap:
 	pnpm install
 
 dev:
-	uvicorn services.api.app:app --reload --host 0.0.0.0 --port 8000
+	.venv/bin/uvicorn services.api.app:app --reload --host 0.0.0.0 --port 8000
 
 data:
 	.venv/bin/python -m data.pipeline.cli run
@@ -27,7 +27,7 @@ lint:
 	pnpm lint
 
 format:
-	ruff format .
+	.venv/bin/ruff format .
 	cargo fmt
 	pnpm format
 

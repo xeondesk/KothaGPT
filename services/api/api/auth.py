@@ -14,9 +14,14 @@ async def require_api_token(authorization: str | None = Header(default=None)) ->
     if not configured:
         if local_mode:
             return "local"
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="API authentication is not configured")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="API authentication is not configured",
+        )
     if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Bearer token required")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Bearer token required"
+        )
     token = authorization.removeprefix("Bearer ").strip()
     if not token or not secrets.compare_digest(token, configured):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid bearer token")

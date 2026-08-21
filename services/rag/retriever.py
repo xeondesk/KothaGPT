@@ -29,7 +29,9 @@ class LexicalRetriever:
         self._chunks.extend(chunks)
         self._df = Counter(term for chunk in self._chunks for term in set(_terms(chunk.content)))
 
-    def search(self, query: str, *, top_k: int = 5, document_id: str | None = None) -> list[SearchResult]:
+    def search(
+        self, query: str, *, top_k: int = 5, document_id: str | None = None
+    ) -> list[SearchResult]:
         if top_k < 1:
             raise ValueError("top_k must be positive")
         query_terms = set(_terms(query))
@@ -44,6 +46,12 @@ class LexicalRetriever:
             matched = tuple(sorted(query_terms & counts.keys()))
             if not matched:
                 continue
-            score = sum((1 + math.log1p(counts[t])) * math.log((total + 1) / (self._df[t] + 1)) for t in matched)
+            score = sum(
+                (1 + math.log1p(counts[t])) * math.log((total + 1) / (self._df[t] + 1))
+                for t in matched
+            )
             results.append(SearchResult(chunk, score, matched))
-        return sorted(results, key=lambda result: (-result.score, result.chunk.document_id, result.chunk.index))[:top_k]
+        return sorted(
+            results,
+            key=lambda result: (-result.score, result.chunk.document_id, result.chunk.index),
+        )[:top_k]

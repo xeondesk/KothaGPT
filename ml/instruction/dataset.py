@@ -1,4 +1,5 @@
 """Validated JSONL instruction data and completion-only SFT batching."""
+
 from __future__ import annotations
 
 import json
@@ -12,7 +13,14 @@ import torch
 from torch.utils.data import Dataset
 
 _ALLOWED_LANGUAGES = {"bn", "en", "multilingual", "mixed", "unknown"}
-_ALLOWED_CATEGORIES = {"instruction", "coding", "reasoning", "conversation", "function_call", "tool_use"}
+_ALLOWED_CATEGORIES = {
+    "instruction",
+    "coding",
+    "reasoning",
+    "conversation",
+    "function_call",
+    "tool_use",
+}
 
 
 def _text(value: Any, field_name: str, *, required: bool = False) -> str:
@@ -42,7 +50,9 @@ class InstructionRecord:
         if not isinstance(raw, dict):
             raise TypeError("instruction record must be an object")
         messages_raw = raw.get("messages") or []
-        if messages_raw and (not isinstance(messages_raw, list) or not all(isinstance(m, dict) for m in messages_raw)):
+        if messages_raw and (
+            not isinstance(messages_raw, list) or not all(isinstance(m, dict) for m in messages_raw)
+        ):
             raise ValueError("messages must be a list of objects")
         messages = []
         for message in messages_raw:
@@ -69,11 +79,28 @@ class InstructionRecord:
         tools = raw.get("tools") or []
         if not isinstance(tools, list) or not all(isinstance(t, dict) for t in tools):
             raise ValueError("tools must be a list of objects")
-        return cls(instruction, output, _text(raw.get("input"), "input"), language, category, tuple(messages), tuple(tools), raw.get("function_call"), raw.get("metadata") or {})
+        return cls(
+            instruction,
+            output,
+            _text(raw.get("input"), "input"),
+            language,
+            category,
+            tuple(messages),
+            tuple(tools),
+            raw.get("function_call"),
+            raw.get("metadata") or {},
+        )
 
     def prompt(self) -> str:
         if self.messages:
-            return "\n".join(f"<{m['role']}>\n{m['content']}" for m in self.messages if m["role"] != "assistant") + "\n<assistant>\n"
+            return (
+                "\n".join(
+                    f"<{m['role']}>\n{m['content']}"
+                    for m in self.messages
+                    if m["role"] != "assistant"
+                )
+                + "\n<assistant>\n"
+            )
         prompt = f"<user>\n{self.instruction}"
         if self.input:
             prompt += f"\n{self.input}"
@@ -97,7 +124,9 @@ def load_jsonl(path: str | Path) -> list[InstructionRecord]:
     return records
 
 
-def split_records(records: Iterable[InstructionRecord], validation_fraction: float = 0.1, seed: int = 0) -> tuple[list[InstructionRecord], list[InstructionRecord]]:
+def split_records(
+    records: Iterable[InstructionRecord], validation_fraction: float = 0.1, seed: int = 0
+) -> tuple[list[InstructionRecord], list[InstructionRecord]]:
     records = list(records)
     if not 0 <= validation_fraction < 1:
         raise ValueError("validation_fraction must be in [0, 1)")
@@ -105,7 +134,9 @@ def split_records(records: Iterable[InstructionRecord], validation_fraction: flo
     random.Random(seed).shuffle(indices)
     n_validation = int(len(records) * validation_fraction)
     validation = {i for i in indices[:n_validation]}
-    return [r for i, r in enumerate(records) if i not in validation], [r for i, r in enumerate(records) if i in validation]
+    return [r for i, r in enumerate(records) if i not in validation], [
+        r for i, r in enumerate(records) if i in validation
+    ]
 
 
 class InstructionDataset(Dataset):
@@ -142,4 +173,9 @@ class InstructionCollator:
             input_ids.append(ids + [self.pad_id] * padding)
             labels.append(labs + [-100] * padding)
             attention.append([1] * len(ids) + [0] * padding)
-        return {"input_ids": torch.tensor(input_ids, dtype=torch.long), "labels": torch.tensor(labels, dtype=torch.long), "attention_mask": torch.tensor(attention, dtype=torch.long), "records": [item["record"] for item in batch]}
+        return {
+            "input_ids": torch.tensor(input_ids, dtype=torch.long),
+            "labels": torch.tensor(labels, dtype=torch.long),
+            "attention_mask": torch.tensor(attention, dtype=torch.long),
+            "records": [item["record"] for item in batch],
+        }

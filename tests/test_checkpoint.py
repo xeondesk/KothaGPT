@@ -195,9 +195,7 @@ def test_resume_model_mismatch_raises(config, tokenizer, tmp_path: Path) -> None
 
     from ml.models import BaseModelConfig
 
-    mismatched_cfg = BaseModelConfig(
-        model=mismatched, training=config.training, data=config.data
-    )
+    mismatched_cfg = BaseModelConfig(model=mismatched, training=config.training, data=config.data)
     with pytest.raises(ValueError, match="model config mismatch"):
         resume(out, model=wrong, optimizer=opt, scheduler=None, config=mismatched_cfg)
 
@@ -215,7 +213,9 @@ def test_checkpoint_pruning_keeps_last(config, tokenizer, tmp_path: Path) -> Non
     assert step_of(checkpoints[0]) == 4
 
 
-def test_best_checkpoint_survives_pruning_and_matches_metadata(config, tokenizer, tmp_path: Path) -> None:
+def test_best_checkpoint_survives_pruning_and_matches_metadata(
+    config, tokenizer, tmp_path: Path
+) -> None:
     from dataclasses import replace
 
     dataset = CausalLMDataset(build_blocks(make_corpus(tmp_path, docs=16), tokenizer, block_size=8))

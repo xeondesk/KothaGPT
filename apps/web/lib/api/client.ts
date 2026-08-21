@@ -13,10 +13,14 @@ function timeoutSignal(signal?: AbortSignal): AbortSignal {
   }
   const controller = new AbortController();
   const timer = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-  signal?.addEventListener("abort", () => {
-    window.clearTimeout(timer);
-    controller.abort(signal.reason);
-  }, { once: true });
+  signal?.addEventListener(
+    "abort",
+    () => {
+      window.clearTimeout(timer);
+      controller.abort(signal.reason);
+    },
+    { once: true },
+  );
   return controller.signal;
 }
 

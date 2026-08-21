@@ -85,9 +85,7 @@ def test_redact_pii_leaves_clean_text_untouched():
 def test_full_pipeline_pii_mask_mode_keeps_doc(tmp_path):
     raw = tmp_path / "raw"
     raw.mkdir()
-    (raw / "pii.txt").write_text(
-        "যোগাযোগ করুন user@example.com ঠিকানায়। " * 20, encoding="utf-8"
-    )
+    (raw / "pii.txt").write_text("যোগাযোগ করুন user@example.com ঠিকানায়। " * 20, encoding="utf-8")
     (raw / "clean.txt").write_text("বাংলা ভাষা একটি সমৃদ্ধ ভাষা। " * 20, encoding="utf-8")
     cfg = PipelineConfig(
         raw_dir=str(raw),

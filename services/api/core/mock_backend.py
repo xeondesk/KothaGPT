@@ -157,16 +157,17 @@ class MockBackend(Backend):
     # ---- embeddings -----------------------------------------------------
 
     def embed(self, model: str, inputs: list[str]) -> EmbeddingResponse:
-        data = [
-            Embedding(index=i, embedding=_embed(text))
-            for i, text in enumerate(inputs)
-        ]
+        data = [Embedding(index=i, embedding=_embed(text)) for i, text in enumerate(inputs)]
         total = sum(_token_count([Message(role="user", content=t)]) for t in inputs)
-        return EmbeddingResponse(model=model, data=data, usage=Usage(prompt_tokens=total, total_tokens=total))
+        return EmbeddingResponse(
+            model=model, data=data, usage=Usage(prompt_tokens=total, total_tokens=total)
+        )
 
     # ---- rerank ---------------------------------------------------------
 
-    def rerank(self, model: str, query: str, documents: list[str], top_n: int | None) -> RerankResponse:
+    def rerank(
+        self, model: str, query: str, documents: list[str], top_n: int | None
+    ) -> RerankResponse:
         scored = [
             RerankResult(index=i, document=doc, relevance_score=_rerank_score(query, doc))
             for i, doc in enumerate(documents)
@@ -184,7 +185,9 @@ class MockBackend(Backend):
     def invoke_tool(self, name: str, arguments: dict[str, Any]) -> ToolInvokeResponse:
         if name == "calculator":
             expression = str(arguments.get("expression", ""))
-            return ToolInvokeResponse(name=name, result={"expression": expression, "value": _safe_eval(expression)})
+            return ToolInvokeResponse(
+                name=name, result={"expression": expression, "value": _safe_eval(expression)}
+            )
         if name == "current_time":
             return ToolInvokeResponse(name=name, result={"utc": _utc_now()})
         if name == "web_search":
@@ -223,7 +226,9 @@ class MockBackend(Backend):
 
     def run_agent(self, agent_id: str, message: str) -> AgentRun:
         agent = self.get_agent(agent_id)
-        system = Message(role="system", content=agent.instructions or "You are a helpful assistant.")
+        system = Message(
+            role="system", content=agent.instructions or "You are a helpful assistant."
+        )
         user = Message(role="user", content=message)
         assistant = Message(role="assistant", content=_mock_reply(message))
         run = AgentRun(
@@ -244,7 +249,12 @@ class MockBackend(Backend):
         run = AgentRun(
             agent_id=agent_id,
             status="running",
-            messages=[Message(role="system", content=agent.instructions or "You are a helpful assistant."), Message(role="user", content=message)],
+            messages=[
+                Message(
+                    role="system", content=agent.instructions or "You are a helpful assistant."
+                ),
+                Message(role="user", content=message),
+            ],
         )
         self._runs[run.id] = run
         yield {"event": "run.created", "run": run.model_dump()}
@@ -287,7 +297,11 @@ def _safe_eval(expression: str) -> float | str:
 def _eval_node(node: ast.AST, depth: int) -> int | float:
     if depth > 20:
         raise ValueError("expression too deep")
-    if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)) and not isinstance(node.value, bool):
+    if (
+        isinstance(node, ast.Constant)
+        and isinstance(node.value, (int, float))
+        and not isinstance(node.value, bool)
+    ):
         if abs(node.value) > 1_000_000:
             raise ValueError("number out of bounds")
         return node.value

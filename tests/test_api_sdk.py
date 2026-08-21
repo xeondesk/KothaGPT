@@ -230,7 +230,15 @@ def test_agent_run_stream_sse():
 
 def test_websocket_chat():
     with client.websocket_connect("/v1/ws") as ws:
-        ws.send_text(json.dumps({"id": "1", "type": "chat", "payload": {"messages": [{"role": "user", "content": "হ্যালো"}]}}))
+        ws.send_text(
+            json.dumps(
+                {
+                    "id": "1",
+                    "type": "chat",
+                    "payload": {"messages": [{"role": "user", "content": "হ্যালো"}]},
+                }
+            )
+        )
         reply = json.loads(ws.receive_text())
         assert reply["id"] == "1"
         assert reply["type"] == "chat"
@@ -248,9 +256,19 @@ def test_websocket_ping_and_models():
 
 def test_websocket_agents_create_and_run():
     with client.websocket_connect("/v1/ws") as ws:
-        ws.send_text(json.dumps({"id": "1", "type": "agents.create", "payload": {"name": "ws-agent"}}))
+        ws.send_text(
+            json.dumps({"id": "1", "type": "agents.create", "payload": {"name": "ws-agent"}})
+        )
         agent = json.loads(ws.receive_text())["payload"]
-        ws.send_text(json.dumps({"id": "2", "type": "agents.run", "payload": {"agent_id": agent["id"], "message": "hi"}}))
+        ws.send_text(
+            json.dumps(
+                {
+                    "id": "2",
+                    "type": "agents.run",
+                    "payload": {"agent_id": agent["id"], "message": "hi"},
+                }
+            )
+        )
         run = json.loads(ws.receive_text())["payload"]
         assert run["status"] == "completed"
 

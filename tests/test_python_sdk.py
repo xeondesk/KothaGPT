@@ -15,7 +15,12 @@ def client(server):
 
 def test_list_models(client):
     models = client.models.list()
-    assert [m.id for m in models] == ["kothagpt", "kothagpt-small", "kothagpt-embed", "kothagpt-rerank"]
+    assert [m.id for m in models] == [
+        "kothagpt",
+        "kothagpt-small",
+        "kothagpt-embed",
+        "kothagpt-rerank",
+    ]
 
 
 def test_chat(client):

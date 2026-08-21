@@ -41,6 +41,28 @@ jobs:
       - name: Plan checker unit tests
         run: python -m pytest tests/test_plan_check.py
 
+  bootstrap:
+    name: Bootstrap script verification
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Syntax check bootstrap scripts
+        run: |
+          bash -n scripts/bootstrap.sh scripts/lib/bootstrap_common.sh \
+            scripts/linux/bootstrap.sh scripts/macos/bootstrap.sh scripts/windows/bootstrap.sh
+      - name: Preview every platform (dry-run)
+        run: |
+          ./scripts/bootstrap.sh --dry-run --platform linux
+          ./scripts/bootstrap.sh --dry-run --platform macos
+          ./scripts/bootstrap.sh --dry-run --platform windows
+      - name: Bootstrap gate tests
+        run: |
+          pip install pytest
+          python -m pytest tests/test_bootstrap.py
+
   test:
     name: Unit tests
     runs-on: ubuntu-latest

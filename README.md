@@ -53,6 +53,18 @@ make bootstrap
 make test
 ```
 
+Bootstrap works on Linux, macOS, and Windows and previews its steps before
+running them:
+
+```bash
+bash scripts/bootstrap.sh --dry-run                 # preview (auto-detected platform)
+bash scripts/bootstrap.sh --dry-run --platform windows
+make bootstrap                                      # execute without prompt
+pwsh scripts/windows/bootstrap.ps1                  # native PowerShell alternative
+```
+
+Prerequisites: Python 3.10+ and Node.js 18+ (corepack/pnpm). Optional Rust tooling: `scripts/install_rust`.
+
 Run the API (mock backend) and try the CLI:
 
 ```bash

@@ -1,11 +1,24 @@
 bootstrap:
-	python3 -m venv .venv
-	. .venv/bin/activate && pip install -r services/api/requirements.txt
-	corepack enable
-	pnpm install
+	./scripts/bootstrap.sh --yes
 
 dev:
 	.venv/bin/uvicorn services.api.app:app --reload --host 0.0.0.0 --port 8000
+
+.PHONY: bootstrap-check
+
+bootstrap-check:
+	bash -n scripts/bootstrap.sh scripts/lib/bootstrap_common.sh \
+		scripts/linux/bootstrap.sh scripts/macos/bootstrap.sh scripts/windows/bootstrap.sh
+	@if command -v shellcheck >/dev/null 2>&1; then \
+		shellcheck scripts/bootstrap.sh scripts/lib/bootstrap_common.sh \
+			scripts/linux/bootstrap.sh scripts/macos/bootstrap.sh scripts/windows/bootstrap.sh; \
+	else \
+		echo "shellcheck not installed; bash -n only"; \
+	fi
+	./scripts/bootstrap.sh --dry-run --platform linux
+	./scripts/bootstrap.sh --dry-run --platform macos
+	./scripts/bootstrap.sh --dry-run --platform windows
+	.venv/bin/python -m pytest tests/test_bootstrap.py
 
 data:
 	.venv/bin/python -m data.pipeline.cli run

@@ -1,5 +1,7 @@
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+
+from ..auth import require_api_token
 from pydantic import BaseModel
 
 from ...core import backend_factory
@@ -11,7 +13,11 @@ class ToolList(BaseModel):
     data: list[Tool]
 
 
-router = APIRouter(prefix="/v1/tools", tags=["tools"])
+router = APIRouter(
+    prefix="/v1/tools",
+    tags=["tools"],
+    dependencies=[Depends(require_api_token)],
+)
 
 
 @router.get("", response_model=ToolList)

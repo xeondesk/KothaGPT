@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import ast
 import asyncio
 import hashlib
 import math
+import operator
 import re
 from collections.abc import AsyncIterator, Iterator
 from datetime import UTC
@@ -239,10 +241,13 @@ class MockBackend(Backend):
     async def run_agent_stream(self, agent_id: str, message: str) -> AsyncIterator[dict[str, Any]]:
         agent = self.get_agent(agent_id)
         output = _mock_reply(message)
-        yield {
-            "event": "run.created",
-            "run": {"id": None, "agent_id": agent.id, "status": "running"},
-        }
+        run = AgentRun(
+            agent_id=agent_id,
+            status="running",
+            messages=[Message(role="system", content=agent.instructions or "You are a helpful assistant."), Message(role="user", content=message)],
+        )
+        self._runs[run.id] = run
+        yield {"event": "run.created", "run": run.model_dump()}
         for tok in _split_tokens(output):
             await asyncio.sleep(0.02)
             yield {"event": "run.delta", "delta": tok}
@@ -255,12 +260,46 @@ def _utc_now() -> str:
     return datetime.now(UTC).isoformat()
 
 
+_BINARY_OPS = {
+    ast.Add: operator.add,
+    ast.Sub: operator.sub,
+    ast.Mult: operator.mul,
+    ast.Div: operator.truediv,
+    ast.Pow: operator.pow,
+    ast.Mod: operator.mod,
+}
+_UNARY_OPS = {ast.UAdd: operator.pos, ast.USub: operator.neg}
+
+
 def _safe_eval(expression: str) -> float | str:
-    expr = expression.replace("^", "**")
+    if len(expression) > 200:
+        return "error: expression too long"
     try:
-        return eval(expr, {"__builtins__": {}}, {})
-    except Exception as exc:  # noqa: BLE001
+        tree = ast.parse(expression.replace("^", "**"), mode="eval")
+        value = _eval_node(tree.body, depth=0)
+        if not math.isfinite(float(value)) or abs(value) > 1_000_000_000:
+            return "error: result out of bounds"
+        return value
+    except (ArithmeticError, SyntaxError, ValueError, TypeError) as exc:
         return f"error: {exc}"
+
+
+def _eval_node(node: ast.AST, depth: int) -> int | float:
+    if depth > 20:
+        raise ValueError("expression too deep")
+    if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)) and not isinstance(node.value, bool):
+        if abs(node.value) > 1_000_000:
+            raise ValueError("number out of bounds")
+        return node.value
+    if isinstance(node, ast.UnaryOp) and type(node.op) in _UNARY_OPS:
+        return _UNARY_OPS[type(node.op)](_eval_node(node.operand, depth + 1))
+    if isinstance(node, ast.BinOp) and type(node.op) in _BINARY_OPS:
+        left = _eval_node(node.left, depth + 1)
+        right = _eval_node(node.right, depth + 1)
+        if isinstance(node.op, ast.Pow) and abs(right) > 12:
+            raise ValueError("exponent out of bounds")
+        return _BINARY_OPS[type(node.op)](left, right)
+    raise ValueError("unsupported expression")
 
 
 def _token_count(messages: list[Message]) -> int:
@@ -298,7 +337,7 @@ def _rerank_score(query: str, doc: str) -> float:
     overlap = len(q_tokens & d_tokens) / math.sqrt(len(q_tokens) * len(d_tokens))
     ngram_bonus = 0.0
     for n in (2, 3):
-        q_ngrams = {doc[i : i + n] for i in range(len(query) - n + 1)}
+        q_ngrams = {query[i : i + n] for i in range(len(query) - n + 1)}
         d_ngrams = {doc[i : i + n] for i in range(len(doc) - n + 1)}
         if q_ngrams:
             ngram_bonus += len(q_ngrams & d_ngrams) / len(q_ngrams)

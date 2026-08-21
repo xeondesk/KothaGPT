@@ -3,6 +3,22 @@ import type { ApiError, ApiResult, Body, RequestOptions } from "@/types/api";
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 const TOKEN_KEY = "kothagpt.access_token";
+const REQUEST_TIMEOUT_MS = 30_000;
+
+function timeoutSignal(signal?: AbortSignal): AbortSignal {
+  if (typeof AbortSignal !== "undefined" && "timeout" in AbortSignal) {
+    const timeout = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
+    if (!signal) return timeout;
+    return AbortSignal.any([signal, timeout]);
+  }
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  signal?.addEventListener("abort", () => {
+    window.clearTimeout(timer);
+    controller.abort(signal.reason);
+  }, { once: true });
+  return controller.signal;
+}
 
 export function getAccessToken(): string | null {
   if (typeof window === "undefined") return null;
@@ -44,7 +60,7 @@ async function request<T>(
   const response = await fetch(`${BASE_URL}${path}`, {
     ...init,
     headers,
-    signal: options.signal,
+    signal: timeoutSignal(options.signal),
   });
 
   const text = await response.text();
@@ -79,7 +95,7 @@ async function requestStream(
   const response = await fetch(`${BASE_URL}${path}`, {
     ...init,
     headers,
-    signal: options.signal,
+    signal: timeoutSignal(options.signal),
   });
 
   if (!response.ok || !response.body) {

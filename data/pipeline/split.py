@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from hashlib import sha256
 
-__all__ = ["split_set", "split_record"]
+__all__ = ["split_record", "split_set"]
 
 _SPLIT_NAMES = ("train", "validation")
 

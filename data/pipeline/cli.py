@@ -167,7 +167,7 @@ def _cmd_check(args: argparse.Namespace) -> int:
     lang = quality.detect_language(text)
     ratio = quality.bengali_ratio(text)
     pii = quality.contains_pii(text)
-    kept, reasons = quality.length_filter(text, min_chars=1, max_chars=10**12, min_words=0)
+    kept, _ = quality.length_filter(text, min_chars=1, max_chars=10**12, min_words=0)
     report = {
         "language": lang,
         "bengali_ratio": round(ratio, 3),

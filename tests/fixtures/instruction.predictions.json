@@ -1,0 +1,9 @@
+[
+  "শুভেচ্ছা! কেমন আছেন?",
+  "def add(a, b):\n    return a + b",
+  "হ্যালো ",
+  "Because blue light scatters.",
+  "I am well, thank you.",
+  "{\"name\": \"get_weather\", \"arguments\": {\"city\": \"Dhaka\"}}",
+  "{\"tool\":\"search\",\"query\":\"KothaGPT\"}"
+]

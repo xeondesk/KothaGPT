@@ -8,19 +8,40 @@ Guiding principles:
 - Keep scope incremental: ship a minimal working pipeline (tokenizer → small model → inference API → RAG) before scaling.
 - Measure progress with objective success metrics (data coverage, eval scores, latency, cost).
 
-Top-level milestones (priority order)
+Top-level milestones (priority order; each maps to `docs/roadmap.md` → plan docs)
 
-1. Foundation (0–6 weeks): dataset, tokenizer, minimal evals, reproducible data pipeline.
-2. Fast inference (2–8 weeks): small 1–3B model experiments, optimized inference path (CPU/GPU), API server.
-3. Instruction & Agents (4–12 weeks): SFT, simple agent tools, RAG integration.
-4. Scale & Production (ongoing): large model training, quantization, orchestration, monitoring, security.
+1. Foundation (0–6 weeks): dataset, tokenizer, minimal evals, reproducible data pipeline → `docs/foundation-plan.md`, `docs/dataset-pipeline-plan.md`.
+2. Fast inference (2–8 weeks): small 1–3B model experiments, optimized inference path (CPU/GPU), API server → `docs/base-model-plan.md`, `docs/pretraining-plan.md`, `docs/runtime-plan.md`.
+3. Instruction & Agents (4–12 weeks): SFT, simple agent tools, RAG integration → `docs/sft-plan.md`, `docs/preference-plan.md`, `docs/rag-plan.md`, `docs/agent-plan.md`, `docs/context-engineering-plan.md`.
+4. Scale & Production (ongoing): large model training, quantization, orchestration, monitoring, security → `docs/eval-plan.md`, `docs/infra-plan.md`, `docs/security-plan.md`, `docs/ecosystem-plan.md`.
 
 Quick wins / Immediate next actions (first 2 weeks)
 
-- A1 — Audit and canonicalize datasets: produce a small validated Bangla corpus (10–50M tokens). Owner: @you. ETA: 1 week. Metric: token count, dedup rate.
+- A1 — Audit and canonicalize datasets: produce a small validated Bangla corpus (10–50M tokens). Owner: @you. ETA: 1 week. Metric: token count, dedup rate. `data/` — Phase 1A pipeline live.
 - A2 — Finalize tokenizer & vocab: pick/configure a unigram/BPE tokenizer and publish vocab. Owner: `ml/tokenizer`. ETA: 3 days. Metric: token coverage, avg tokens per word.
 - A3 — Stand up inference prototype: load a small model (1B) and expose a simple FastAPI endpoint in `services/api`. Owner: `services/api` team. ETA: 1 week. Metric: p95 latency < 500ms (local GPU), response correctness.
 - A4 — Add CI task: dataset checks + tokenizer build + unit tests. Owner: `infra`. ETA: 3 days.
+
+Bangla Language Foundation (plan: `docs/bangla-foundation-plan.md`)
+
+Wave A — language preprocessing (DONE, commit f469c87)
+
+- [x] WS-2 Unicode normalization — yaphala fix, NFKC-latin-only, digit policy (`data/pipeline/normalize.py`)
+- [x] WS-3 Punctuation normalization — danda/quotes/dashes/digits (`data/pipeline/punctuation.py`)
+- [x] WS-4 Bangla-English mixed text — script detection + spacing (`data/pipeline/mixed.py`)
+- [x] WS-5 Transliteration — bn<->la transliterator + golden fixture + CLI `--transliterate` (`ml/tokenizer/transliterate.py`)
+- [x] Docs: `docs/bangla-normalization.md`, `docs/bangla-transliteration.md`
+
+Wave B — tokenizer freeze (DONE, production vocab 1.0.0+7bf1a6e740e3.5d53c485)
+
+- [x] WS-1 Tokenizer create/select — experiments matrix + baselines + selection report (`ml/tokenizer/artifacts/`)
+- [x] WS-6 Vocabulary — frozen 16k BPE vocab on Bangla Wikipedia corpus: `ml/tokenizer/vocab/` + versioning (98.48% script-char coverage, 0% unk)
+- [x] WS-7 Token efficiency — translit/digits/names/social stress sets + unk/decode-fidelity metrics + CI gate (gate passes: tpc 0.3361, fidelity 100%)
+
+Wave C — evaluation (DONE)
+
+- [x] WS-8 Benchmark dataset — `data/benchmarks/bangla/v1/` (QA 576 / translation 1120 / summarization 108 / generation 26 JSONL)
+- [x] WS-9 Language evaluation — `evals/run.py` runner + metrics + report (`evals/results/2026-08-20-bangla.*`)
 
 Roadmap structure (for each milestone)
 
@@ -46,12 +67,14 @@ Example: Foundation milestone
  	- License/PII issues → enforce automated PII and license checks in pipeline.
  	- Low-quality sources → add source scoring and human spot checks.
 
-Immediate checklist to add to repo
+Immediate checklist (all done)
 
-- [ ] Add `data/processed/README.md` describing final formats and shard structure.
-- [ ] Add `ml/tokenizer/README.md` with training and evaluation commands.
-- [ ] Create `services/api/quickstart.md` with a curl example for the prototype endpoint.
-- [ ] Add lightweight `Makefile` targets: `make data-validate`, `make tokenizer-build`, `make serve-proto`.
+- [x] Add `data/processed/README.md` describing final formats and shard structure.
+- [x] Add `ml/tokenizer/README.md` with training and evaluation commands.
+- [x] Create `services/api/quickstart.md` with a curl example for the prototype endpoint.
+- [x] Add lightweight `Makefile` targets: `make data-validate`, `make tokenizer-build`, `make serve-proto`.
+
+Also added: `make plans-check` (auto review & verify all plan docs + master-checklist coverage).
 
 Owners & roles (suggested)
 
@@ -74,10 +97,62 @@ Suggested short-term timeline (12 weeks)
 - Weeks 2–6: Inference prototype + tokenizer finalized + small model experiments
 - Weeks 6–12: SFT/Instruction tuning on small model + RAG prototype
 
-Practical next steps I can do now
+Practical next steps (II–III done)
 
 - I. Update this `TODO` with the prioritized roadmap and checklists (done).
-- II. Create `data/processed/README.md`, `ml/tokenizer/README.md`, and `services/api/quickstart.md` stubs.
-- III. Add small `Makefile` targets for validation and quickserve.
+- II. Create `data/processed/README.md`, `ml/tokenizer/README.md`, and `services/api/quickstart.md` stubs (done).
+- III. Add small `Makefile` targets for validation and quickserve (done).
 
-Tell me which of the suggested owners/timeframes you accept, and I will implement the repo changes for the next steps (II–III) automatically.
+Implementation plans (all linked from `docs/roadmap.md`)
+
+Master checklist: `docs/checklist.md` — every item auto-verified as covered by
+its mapped plan via `make plans-check` (scripts/check_plans.py).
+
+Cross-cutting: `docs/eval-plan.md` (benchmarks, human eval, regression gate),
+`docs/infra-plan.md` (GPU cluster, serving, observability, DR),
+`docs/ecosystem-plan.md` (hubs, marketplaces, fine-tuning, hosted inference),
+`docs/security-plan.md` (injection, sandbox, secrets, supply chain, red-team),
+`docs/context-engineering-plan.md` (prompts, hierarchy, window, safe formatting, registry).
+Product decisions: `docs/foundation.md` (living decision record; TENTATIVE until
+confirmed via `docs/foundation-plan.md`).
+
+- Phase 0 — Foundation: `docs/foundation-plan.md` — purpose, language scope, product type, personas, MVP, model size, license, repo identity.
+- Phase 1 — Data: `docs/dataset-pipeline-plan.md` — collection → filters → split/versioning.
+- Phase 2 — Language: Bangla foundation, tokenizer, benchmarks (DONE; see Wave A–C).
+- Phase 3 — Model: `docs/base-model-plan.md` (architecture + trainer), `docs/pretraining-plan.md` (scale + GPU + long-context).
+  - Phase 4 — Alignment: `docs/sft-plan.md` (instruction tuning), `docs/preference-plan.md` (reward/DPO, safety, hallucination, refusal).
+
+  Instruction Tuning (foundation implemented)
+
+  - [x] Instruction dataset তৈরি — validated JSONL schema and fixture (`ml/instruction/dataset.py`)
+  - [x] SFT pipeline তৈরি — completion-only prompt masking and CPU/GPU runner (`ml/instruction/sft.py`)
+  - [x] বাংলা instruction tuning — `language=bn` records supported
+  - [x] English instruction tuning — `language=en` records supported
+  - [x] Multilingual instruction tuning — `language=multilingual` records supported
+  - [x] Coding instruction tuning — `category=coding` records supported
+  - [x] Reasoning dataset তৈরি — `category=reasoning` records supported
+  - [x] Conversation tuning — role-based `messages` records supported
+  - [x] Function-calling dataset — `function_call` records supported
+  - [x] Tool-use dataset — `tools` records supported
+  - [x] SFT evaluation — grouped exact and normalized completion matching (`evals/sft.py`)
+  - [ ] Scale training, preference optimization, and model-based quality evaluation
+
+- Phase 5 — Runtime: `docs/runtime-plan.md` (engine, KV cache, batching, quantization, registry, API, auth, rate limiting).
+- Phase 6 — Intelligence: `docs/rag-plan.md` (ingestion, retrieval, citations), `docs/agent-plan.md` (tools, memory, planner, loop, sandbox, permissions).
+- Phase 6b — Context Engineering: `docs/context-engineering-plan.md` (prompts, hierarchy, window, packing, compression, selective context, safe formatting, registry).
+- Phase 7 — Platform: `docs/web-app-plan.md` (apps/web dashboard), `docs/sdk-plan.md` + `docs/sdk.md` (multi-language SDKs).
+- Phase 8 — Evaluation: `docs/eval-plan.md`.
+- Phase 9 — Infrastructure: `docs/infra-plan.md`.
+- Phase 10 — Security: `docs/security-plan.md`.
+- Phase 7b — Ecosystem: `docs/ecosystem-plan.md`.
+
+Owner map for new plans:
+
+- `ml/sft` → `docs/sft-plan.md`; `ml/preference` → `docs/preference-plan.md`
+- `ml/inference` + `services/inference` → `docs/runtime-plan.md`
+- `services/rag` → `docs/rag-plan.md`; `services/agents` → `docs/agent-plan.md`
+- `ml/context` → `docs/context-engineering-plan.md`
+- `evals/` → `docs/eval-plan.md`; `infra/` → `docs/infra-plan.md`
+- `services/security` + `data/pipeline/security.py` → `docs/security-plan.md`
+- `packages/*` → `docs/sdk-plan.md`; product decisions → `docs/foundation-plan.md`
+- `apps/*` + `services/hub` + `services/marketplace` → `docs/ecosystem-plan.md`

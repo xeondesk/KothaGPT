@@ -131,7 +131,7 @@ def run_pipeline(cfg: PipelineConfig) -> dict:
     # 3. Copyright / licensing gate.
     licensed = []
     for record in normalized:
-        keep, reasons = copyright.copyright_gate(
+        keep, _ = copyright.copyright_gate(
             record,
             license_map=license_map,
             allowlist=license_allowlist,
@@ -154,7 +154,7 @@ def run_pipeline(cfg: PipelineConfig) -> dict:
                 record = dict(record)
                 record["text"] = text
             pii_allowed = True  # PII already handled by masking
-        keep, reasons = quality.quality_filter(
+        keep, _ = quality.quality_filter(
             text,
             min_chars=cfg.min_chars,
             max_chars=cfg.max_chars,

@@ -17,7 +17,7 @@ def _percentiles(values: list[int]) -> dict[str, float]:
         return {}
     values = sorted(values)
     n = len(values)
-    pick = lambda p: values[max(0, int(p * (n - 1)))]  # noqa: E731
+    pick = lambda p: values[max(0, int(p * (n - 1)))]
     return {
         "min": float(values[0]),
         "p10": float(pick(0.10)),

@@ -19,7 +19,7 @@ tokenizer:
 		--out ml/tokenizer/artifacts
 
 test:
-	python -m pytest tests
+	.venv/bin/python -m pytest tests
 
 lint:
 	ruff check .
@@ -37,6 +37,43 @@ clean:
 data-validate:
 	@echo "Running data validation checks..."
 	python -m data.pipeline.cli version
+
+# WS-1/WS-2: pre-tokenize the processed corpus into uint32 block shards so
+# training never re-tokenizes. Idempotent; run again to regenerate.
+data-tokenize:
+	python -m ml.tokenize_shards \
+		--corpus $$(cat data/processed/CURRENT 2>/dev/null) \
+		--tokenizer ml/tokenizer/artifacts/best \
+		--block-size 4096 \
+		--out data/tokenized
+
+# WS-5: CPU smoke training. Tokenize at the smoke model's context (512) so
+# block size matches max_position_embeddings, then run a short CPU training
+# pass over the tokenized shards via the memmap dataset.
+data-tokenize-smoke:
+	python -m ml.tokenize_shards \
+		--corpus $$(cat data/processed/CURRENT 2>/dev/null) \
+		--tokenizer ml/tokenizer/artifacts/best \
+		--block-size 512 \
+		--out data/tokenized
+
+train-smoke: data-tokenize-smoke
+	python -m ml.trainer.cli run \
+		--config ml/configs/smoke.yaml \
+		--device cpu \
+		--out ml/pretrain/artifacts/smoke \
+		--max-steps 200
+
+gpu-env:
+	@echo "Installing training dependencies from ml/requirements.txt..."
+	@echo "CUDA-specific PyTorch wheels are selected by the host environment; no CI index is forced."
+	.venv/bin/python -m pip install -r ml/requirements.txt
+
+gpu-verify:
+	.venv/bin/python -m ml.gpu_verify
+
+gpu-smoke:
+	.venv/bin/python -m ml.gpu_verify
 
 tokenizer-build:
 	@echo "Building tokenizer artifacts..."
@@ -68,8 +105,75 @@ tokenizer-check:
 		exit 1; \
 	fi
 
+# WS-7 efficiency gate: fails the build when the frozen tokenizer violates the
+# threshold set (unk < 0.5% on dev, decode fidelity 100%, tokens/char budget).
+tokenizer-bench:
+	python -m ml.tokenizer.cli benchmark \
+		--tokenizer ml/tokenizer/artifacts/best/tokenizer.json \
+		--out ml/tokenizer/artifacts/benchmark.json \
+		--gate
+
+# WS-9: run the Bangla benchmark suite against the mock backend and write a
+# dated JSON report + markdown report under evals/results/.
+eval-bangla:
+	python -m evals.run --suite evals/suites/bangla.yaml
+
+# Instruction tuning: validate records and run completion-only SFT.
+sft-smoke:
+	.venv/bin/python -m ml.instruction.sft \
+		--train tests/fixtures/instruction.jsonl \
+		--tokenizer ml/tokenizer/artifacts/best/tokenizer.json \
+		--config ml/configs/smoke.yaml \
+		--device cpu --max-steps 1 --out ml/sft/artifacts/smoke
+
+sft-eval:
+	.venv/bin/python -m evals.sft \
+		--records tests/fixtures/instruction.jsonl \
+		--predictions tests/fixtures/instruction.predictions.json \
+		--out evals/results/sft
+
+# Auto review & verify the implementation plans in docs/ (structure + links).
+plans-check:
+	python scripts/check_plans.py
+
+# WS-1/WS-6: retrain on the normalized corpus and freeze tokenizer + vocab
+# (artifacts/best/, vocab/, DECISION.md). On real data use the target vocab
+# size; CI uses a small size so the artifact is cheap to produce.
+tokenizer-freeze:
+	python -m ml.tokenizer.cli freeze \
+		--corpus data/processed/$$(cat data/processed/CURRENT 2>/dev/null)/train \
+		--algorithm bpe --vocab-size 2000 --min-frequency 1 --gate \
+		--out ml/tokenizer
+
 serve-proto:
-	uvicorn services.api.app:app --host 0.0.0.0 --port 8000
+	.venv/bin/uvicorn services.api.app:app --host 0.0.0.0 --port 8000
+
+# --- Developer SDK -----------------------------------------------------------
+
+# --- Docker Compose ----------------------------------------------------------
+
+.PHONY: up down logs ps stop restart build
+
+up:
+	docker compose up -d
+
+down:
+	docker compose down
+
+logs:
+	docker compose logs -f
+
+ps:
+	docker compose ps
+
+stop:
+	docker compose stop
+
+restart:
+	docker compose restart
+
+build:
+	docker compose build
 
 # --- Developer SDK -----------------------------------------------------------
 

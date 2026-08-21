@@ -4,6 +4,9 @@ version = "0.1.0"
 description = "Bangla-first AI platform"
 requires-python = ">=3.11"
 
+[tool.vercel]
+entrypoint = "services.api.app:app"
+
 [tool.ruff]
 line-length = 100
 

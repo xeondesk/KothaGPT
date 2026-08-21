@@ -12,9 +12,8 @@ from pathlib import Path
 import httpx
 import pytest
 
-from ml.models import BaseModelConfig, DataConfig, ModelConfig, TrainingConfig
-
 API_PORT = 8011
+API_TEST_TOKEN = "test-token-abc123"
 
 
 @pytest.fixture(scope="module")
@@ -25,6 +24,7 @@ def server():
         cwd=repo_root,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
+        env={**os.environ, "KOTHAGPT_API_TOKEN": API_TEST_TOKEN},
     )
     try:
         for _ in range(50):
@@ -40,8 +40,9 @@ def server():
 
 
 @pytest.fixture(scope="module")
-def config(tmp_path_factory: pytest.TempPathFactory) -> BaseModelConfig:
+def config(tmp_path_factory: pytest.TempPathFactory):
     """A tiny trainable model/training/data config shared by trainer tests."""
+    from ml.models.config import BaseModelConfig, DataConfig, ModelConfig, TrainingConfig
     from ml.tokenizer import train_bpe
 
     tmp = tmp_path_factory.mktemp("cfg")

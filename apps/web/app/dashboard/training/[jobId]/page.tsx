@@ -32,12 +32,28 @@ export default function TrainingJobDetailPage() {
   const { data: checkpoints } = useTrainingCheckpoints(jobId);
   const control = useTrainingControl(jobId);
 
-  if (isLoading || !job) {
+  if (isLoading) {
     return (
       <div className="flex flex-col gap-6">
         <Skeleton className="h-8 w-40" />
         <Skeleton className="h-64 w-full" />
         <Skeleton className="h-48 w-full" />
+      </div>
+    );
+  }
+
+  if (!job) {
+    return (
+      <div className="flex flex-col gap-4">
+        <h1 className="text-2xl font-semibold tracking-tight">
+          Training job not found
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          This job may have been removed or the link is incorrect.
+        </p>
+        <Button variant="outline" asChild className="w-fit">
+          <Link href="/dashboard/training">Back to training</Link>
+        </Button>
       </div>
     );
   }
@@ -76,15 +92,17 @@ export default function TrainingJobDetailPage() {
                 Stop
               </Button>
             </>
-          ) : (
-            <Button
-              onClick={() => control.mutate({ action: "start" })}
-              disabled={job.status === "failed"}
-            >
+          ) : job.status === "pending" ? (
+            <Button onClick={() => control.mutate({ action: "start" })}>
+              <Play />
+              Start
+            </Button>
+          ) : job.status === "paused" ? (
+            <Button onClick={() => control.mutate({ action: "start" })}>
               <Play />
               Resume
             </Button>
-          )}
+          ) : null}
         </div>
       </div>
 

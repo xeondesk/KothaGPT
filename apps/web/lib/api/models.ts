@@ -13,9 +13,10 @@ export interface ModelsApi {
 
 export const modelsApi: ModelsApi = {
   list: () => get<Paginated<Model>>("/v1/models"),
-  get: (id) => get<Model>(`/v1/models/${id}`),
+  get: (id) => get<Model>(`/v1/models/${encodeURIComponent(id)}`),
   create: (input) => post<Model>("/v1/models", input),
-  setActive: (id, active) => patch<Model>(`/v1/models/${id}`, { active }),
+  setActive: (id, active) =>
+    patch<Model>(`/v1/models/${encodeURIComponent(id)}`, { active }),
   compare: (ids) => post<ModelComparisonRow[]>("/v1/models/compare", { ids }),
-  remove: (id) => del<void>(`/v1/models/${id}`),
+  remove: (id) => del<void>(`/v1/models/${encodeURIComponent(id)}`),
 };

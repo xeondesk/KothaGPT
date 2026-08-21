@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { Settings2 } from "lucide-react";
 import { ConversationSidebar } from "@/components/chat/conversation-sidebar";
 import { ChatComposer } from "@/components/chat/composer";
@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { useStream } from "@/hooks/use-stream";
-import { useMessages } from "@/hooks";
+import { useMessages, useCreateConversation } from "@/hooks";
 import { useChatStore } from "@/stores/chat-store";
 
 export default function ChatPage() {
@@ -38,19 +38,36 @@ export default function ChatPage() {
   const maxTokens = useChatStore((s) => s.maxTokens);
 
   const history = useMessages(conversationId ?? "");
+  const router = useRouter();
+  const createConversation = useCreateConversation();
+
+  const handleNew = () => {
+    createConversation.mutate(
+      { title: "New chat", model: selectedModel },
+      {
+        onSuccess: (conversation) => {
+          router.push(`/dashboard/chat/${conversation.id}`);
+        },
+      }
+    );
+  };
 
   React.useEffect(() => {
     setConversationId(conversationId ?? null);
-    if (conversationId && history.data) {
+    if (!conversationId) {
+      clearMessages();
+      return;
+    }
+    if (history.data) {
       setMessages(history.data);
-    } else if (!conversationId) {
+    } else {
       clearMessages();
     }
   }, [conversationId, history.data, setConversationId, setMessages, clearMessages]);
 
   return (
     <div className="flex -m-6 h-[calc(100vh-3.5rem)]">
-      <ConversationSidebar onNew={() => {}} />
+      <ConversationSidebar onNew={handleNew} />
       <div className="flex flex-1 flex-col">
         <div className="flex items-center justify-between border-b border-border px-4 py-2">
           <ModelSelector value={selectedModel} onChange={setSelectedModel} />
@@ -81,7 +98,10 @@ export default function ChatPage() {
                   type="number"
                   min="1"
                   value={maxTokens}
-                  onChange={(e) => setMaxTokens(parseInt(e.target.value, 10) || 0)}
+                  onChange={(e) => {
+                    const parsed = parseInt(e.target.value, 10);
+                    setMaxTokens(Number.isNaN(parsed) || parsed < 1 ? 1 : parsed);
+                  }}
                   className="h-8 w-20"
                 />
               </div>

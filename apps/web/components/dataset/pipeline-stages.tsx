@@ -23,24 +23,21 @@ const STAGE_INDEX: Record<string, number> = {
 };
 
 export function PipelineStages({ status }: { status: string }) {
-  const current = STAGE_INDEX[status] ?? 0;
+  const current = STAGE_INDEX[status];
   const isReady = status === "ready";
+  const inactive = current === undefined || status === "failed";
 
   return (
     <div className="flex w-full items-center gap-1">
       {STAGES.map((stage, i) => {
-        const done = isReady ? true : i < current;
-        const active = !isReady && i === current;
+        const done = isReady || (!inactive && i < current);
+        const active = !isReady && !inactive && i === current;
         return (
           <div key={stage} className="flex flex-1 flex-col items-center gap-1.5">
             <div
               className={cn(
                 "flex h-1.5 w-full rounded-full transition-colors",
-                done || active
-                  ? "bg-primary"
-                  : i === 0
-                    ? "bg-primary"
-                    : "bg-muted"
+                done || active ? "bg-primary" : "bg-muted"
               )}
             />
             <span

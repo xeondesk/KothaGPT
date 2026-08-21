@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { FlaskConical, Plus, Trash2 } from "lucide-react";
+import { FlaskConical, Eye, Plus, Trash2 } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -114,18 +114,12 @@ export default function EvaluationsPage() {
                   <TableHead>Benchmark</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Started</TableHead>
-                  <TableHead className="w-10" />
+                  <TableHead className="w-24" />
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {runs.map((r) => (
-                  <TableRow
-                    key={r.id}
-                    className="cursor-pointer"
-                    onClick={() =>
-                      r.status === "completed" && setDetail(r)
-                    }
-                  >
+                  <TableRow key={r.id}>
                     <TableCell className="font-medium">{r.name}</TableCell>
                     <TableCell>{r.model}</TableCell>
                     <TableCell>{r.benchmark}</TableCell>
@@ -136,14 +130,30 @@ export default function EvaluationsPage() {
                       {formatDate(r.startedAt)}
                     </TableCell>
                     <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-muted-foreground hover:text-destructive"
-                        onClick={() => remove.mutate(r.id)}
-                      >
-                        <Trash2 className="size-4" />
-                      </Button>
+                      <div className="flex items-center justify-end gap-1">
+                        {r.status === "completed" && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label={`View details for ${r.name}`}
+                            onClick={() => setDetail(r)}
+                          >
+                            <Eye className="size-4" />
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          aria-label={`Delete ${r.name}`}
+                          className="text-muted-foreground hover:text-destructive"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            remove.mutate(r.id);
+                          }}
+                        >
+                          <Trash2 className="size-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -170,7 +180,6 @@ export default function EvaluationsPage() {
 }
 
 function ComparisonTable({ runs }: { runs: EvaluationRun[] }) {
-  const models = runs.map((r) => r.model);
   const taskKeys = Array.from(
     new Set(runs.flatMap((r) => Object.keys(r.scores)))
   );
@@ -188,8 +197,8 @@ function ComparisonTable({ runs }: { runs: EvaluationRun[] }) {
           <TableHeader>
             <TableRow>
               <TableHead>Task</TableHead>
-              {models.map((m) => (
-                <TableHead key={m}>{m}</TableHead>
+              {runs.map((r) => (
+                <TableHead key={r.id}>{r.model}</TableHead>
               ))}
             </TableRow>
           </TableHeader>

@@ -44,7 +44,11 @@ export function ChatComposer({
             className="min-h-[44px] resize-none pr-12 py-3"
             onChange={(e) => setValue(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
+              if (
+                e.key === "Enter" &&
+                !e.shiftKey &&
+                !e.nativeEvent.isComposing
+              ) {
                 e.preventDefault();
                 submit();
               }
@@ -56,6 +60,7 @@ export function ChatComposer({
               variant="outline"
               className="absolute bottom-2 right-2"
               onClick={onStop}
+              aria-label="Stop generating"
             >
               <Square className="size-4" />
             </Button>
@@ -65,6 +70,7 @@ export function ChatComposer({
               className="absolute bottom-2 right-2"
               onClick={submit}
               disabled={!value.trim()}
+              aria-label="Send message"
             >
               <ArrowUp className="size-4" />
             </Button>

@@ -44,16 +44,24 @@ export interface KnowledgeApi {
 
 export const knowledgeApi: KnowledgeApi = {
   list: () => get<Paginated<KnowledgeBase>>("/v1/knowledge"),
-  get: (id) => get<KnowledgeBase>(`/v1/knowledge/${id}`),
+  get: (id) => get<KnowledgeBase>(`/v1/knowledge/${encodeURIComponent(id)}`),
   create: (input) => post<KnowledgeBase>("/v1/knowledge", input),
   ingestDocuments: async (id, files) => {
     const form = new FormData();
     files.forEach((f) => form.append("files", f));
-    return post<KnowledgeBase>(`/v1/knowledge/${id}/ingest`, form);
+    return post<KnowledgeBase>(
+      `/v1/knowledge/${encodeURIComponent(id)}/ingest`,
+      form
+    );
   },
   ingestUrl: (id, url) =>
-    post<KnowledgeBase>(`/v1/knowledge/${id}/ingest-url`, { url }),
+    post<KnowledgeBase>(`/v1/knowledge/${encodeURIComponent(id)}/ingest-url`, {
+      url,
+    }),
   retrieve: (id, query, topK = 5) =>
-    post<KnowledgeRetrieval>(`/v1/knowledge/${id}/retrieve`, { query, topK }),
-  remove: (id) => del<void>(`/v1/knowledge/${id}`),
+    post<KnowledgeRetrieval>(
+      `/v1/knowledge/${encodeURIComponent(id)}/retrieve`,
+      { query, topK }
+    ),
+  remove: (id) => del<void>(`/v1/knowledge/${encodeURIComponent(id)}`),
 };

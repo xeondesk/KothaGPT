@@ -349,7 +349,10 @@ def _cmd_freeze(args: argparse.Namespace) -> int:
     for i, doc in enumerate(iter_corpus(args.corpus)):
         total_docs += 1
         ndoc = norm.normalize_text(doc)
-        digest_h.update(ndoc.encode("utf-8"))
+        doc_bytes = ndoc.encode("utf-8")
+        # length-prefix each document so the hash is unambiguous
+        digest_h.update(len(doc_bytes).to_bytes(8, "big"))
+        digest_h.update(doc_bytes)
         digest_h.update(b"\x00")
         if i % args.sample_stride == 0:
             train_docs.append(ndoc)
@@ -436,6 +439,7 @@ def _cmd_freeze(args: argparse.Namespace) -> int:
         benchmark,
         total_docs,
         len(train_docs),
+        len(coverage_docs),
     )
     return 0
 
@@ -449,6 +453,7 @@ def _write_freeze_reports(
     benchmark: dict,
     corpus_docs: int,
     train_docs: int,
+    coverage_docs: int,
 ) -> None:
     artifacts = out_root / "artifacts"
     lines = [
@@ -494,7 +499,7 @@ def _write_freeze_reports(
         ),
         (
             f"- Coverage: **{coverage['coverage']:.2%}** of script characters on a "
-            f"{args.coverage_docs:,}-doc sample; unk rate {coverage['unk_rate']:.2%}."
+            f"{coverage_docs:,}-doc sample; unk rate {coverage['unk_rate']:.2%}."
         ),
         (
             f"- Efficiency gate passes: tpc {benchmark['avg_tokens_per_char']:.4f} "

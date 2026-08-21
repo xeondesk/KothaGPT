@@ -48,6 +48,7 @@ export function RunEvaluationDialog({
 
   const submit = async (values: FormData) => {
     await create.mutateAsync({
+      name: values.name,
       model: values.model,
       benchmark: values.benchmark,
     });
@@ -55,11 +56,16 @@ export function RunEvaluationDialog({
     onOpenChange(false);
   };
 
+  const handleOpenChange = (next: boolean) => {
+    if (!next && create.isPending) return;
+    onOpenChange(next);
+  };
+
   const modelOptions = models.data?.items ?? [];
   const benchmarkOptions = benchmarks.data ?? [];
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Run evaluation</DialogTitle>
@@ -118,7 +124,12 @@ export function RunEvaluationDialog({
             )}
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={create.isPending}
+            >
               Cancel
             </Button>
             <Button type="submit" disabled={create.isPending}>

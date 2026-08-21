@@ -31,7 +31,11 @@ export interface EvaluationsApi {
   list(): Promise<Paginated<EvaluationRun>>;
   get(id: string): Promise<EvaluationRun>;
   benchmarks(): Promise<BenchmarkDefinition[]>;
-  create(input: { model: string; benchmark: string }): Promise<EvaluationRun>;
+  create(input: {
+    name: string;
+    model: string;
+    benchmark: string;
+  }): Promise<EvaluationRun>;
   remove(id: string): Promise<void>;
 }
 

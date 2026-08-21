@@ -24,9 +24,13 @@ function CodeBlock({ children, className }: { children: string; className?: stri
           size="icon"
           className="h-6 w-6 text-muted-foreground"
           onClick={() => {
-            navigator.clipboard.writeText(code);
-            setCopied(true);
-            setTimeout(() => setCopied(false), 1500);
+            navigator.clipboard
+              .writeText(code)
+              .then(() => {
+                setCopied(true);
+                setTimeout(() => setCopied(false), 1500);
+              })
+              .catch(() => {});
           }}
         >
           {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}

@@ -25,10 +25,15 @@ export interface UsageApi {
 }
 
 export const usageApi: UsageApi = {
-  summary: (range = "30d") => get<UsageSummary>(`/v1/usage/summary?range=${range}`),
-  timeSeries: (range = "30d", granularity = "day") =>
-    get<UsageMetric[]>(
-      `/v1/usage/timeseries?range=${range}&granularity=${granularity}`
-    ),
+  summary: (range = "30d") => {
+    const params = new URLSearchParams({ range });
+    return get<UsageSummary>(`/v1/usage/summary?${params.toString()}`);
+  },
+  timeSeries: (range = "30d", granularity = "day") => {
+    const params = new URLSearchParams({ range, granularity });
+    return get<UsageMetric[]>(
+      `/v1/usage/timeseries?${params.toString()}`
+    );
+  },
   byModel: () => get<Record<string, UsageMetric>>("/v1/usage/by-model"),
 };

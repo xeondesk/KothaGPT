@@ -14,10 +14,13 @@ export interface AgentsApi {
 
 export const agentsApi: AgentsApi = {
   list: () => get<Paginated<Agent>>("/v1/agents"),
-  get: (id) => get<Agent>(`/v1/agents/${id}`),
+  get: (id) => get<Agent>(`/v1/agents/${encodeURIComponent(id)}`),
   create: (input) => post<Agent>("/v1/agents", input),
-  update: (id, input) => patch<Agent>(`/v1/agents/${id}`, input),
-  traces: (id) => get<AgentTrace[]>(`/v1/agents/${id}/traces`),
-  run: (id, input) => post<AgentTrace>(`/v1/agents/${id}/run`, { input }),
-  remove: (id) => del<void>(`/v1/agents/${id}`),
+  update: (id, input) =>
+    patch<Agent>(`/v1/agents/${encodeURIComponent(id)}`, input),
+  traces: (id) =>
+    get<AgentTrace[]>(`/v1/agents/${encodeURIComponent(id)}/traces`),
+  run: (id, input) =>
+    post<AgentTrace>(`/v1/agents/${encodeURIComponent(id)}/run`, { input }),
+  remove: (id) => del<void>(`/v1/agents/${encodeURIComponent(id)}`),
 };

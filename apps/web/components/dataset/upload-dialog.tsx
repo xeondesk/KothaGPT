@@ -36,13 +36,22 @@ export function DatasetUploadDialog({
 
   const submit = async () => {
     if (!file) return;
-    await upload.mutateAsync({ file, name: name || file.name });
+    try {
+      await upload.mutateAsync({ file, name: name || file.name });
+    } catch {
+      return;
+    }
     reset();
     onOpenChange(false);
   };
 
+  const handleOpenChange = (next: boolean) => {
+    if (!next && upload.isPending) return;
+    onOpenChange(next);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Upload dataset</DialogTitle>
@@ -108,6 +117,13 @@ export function DatasetUploadDialog({
               </>
             )}
           </div>
+          {upload.error && (
+            <p className="text-sm text-destructive">
+              {upload.error instanceof Error
+                ? upload.error.message
+                : "Upload failed. Please try again."}
+            </p>
+          )}
         </div>
         <DialogFooter>
           <Button

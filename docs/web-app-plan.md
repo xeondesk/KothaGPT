@@ -22,6 +22,12 @@ Guiding principles:
 
 ## Current state
 
+> **Note:** This section is the **pre-implementation baseline** captured when
+> planning started. `apps/web` has since been implemented — the API client,
+> design system, dashboard, streaming chat, and the dataset, training,
+> evaluation, usage, agent, knowledge, and tool pages described below now
+> exist. The table is kept for historical context only.
+
 | Area | Exists | Gaps |
 | --- | --- | --- |
 | App scaffold | `apps/web/{app,next.config.ts,tsconfig.json,package.json}` | bare Next.js, `app/layout.tsx` + `app/page.tsx` only |
@@ -348,6 +354,9 @@ MVP → Dataset → Training → Evaluation → RAG → Agents → Developer Pla
 ## Success criteria
 
 - `apps/web` builds (`pnpm --filter @kothagpt/web build`) and lints clean.
+  These are **manual acceptance checks** — CI currently covers the Python
+  services only; a Node/pnpm job for the web build and lint is not yet wired
+  up.
 - Streaming chat works end-to-end via the typed API client; backend boundary is
   the only integration point (no direct service calls from components).
 - The backend implementation is swappable behind the API client without

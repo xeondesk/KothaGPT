@@ -24,7 +24,7 @@ export interface AgentTrace {
   id: string;
   agentId: string;
   startedAt: string;
-  endedAt: string;
+  endedAt?: string;
   status: "completed" | "failed" | "running";
   steps: {
     type: "model" | "tool" | "memory" | "knowledge";

@@ -19,7 +19,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { useModels, useTrainingJobs, useConversations } from "@/hooks";
+import { useModels, useTrainingJobs, useConversations, useDatasets, useUsageSummary } from "@/hooks";
 
 function StatCard({
   title,
@@ -50,6 +50,11 @@ export default function DashboardPage() {
   const models = useModels();
   const training = useTrainingJobs();
   const conversations = useConversations();
+  const datasets = useDatasets();
+  const usage = useUsageSummary();
+  const readyDatasets = datasets.data
+    ? datasets.data.items.filter((d) => d.status === "ready").length
+    : undefined;
 
   return (
     <div className="flex flex-col gap-6">
@@ -77,19 +82,19 @@ export default function DashboardPage() {
         />
         <StatCard
           title="Tokens"
-          value="0"
+          value={usage.data ? usage.data.tokens.toLocaleString() : "—"}
           hint="consumed this month"
           icon={Sparkles}
         />
         <StatCard
           title="Requests"
-          value="0"
+          value={usage.data ? usage.data.requests.toLocaleString() : "—"}
           hint="in the last 30 days"
           icon={Activity}
         />
         <StatCard
           title="Datasets"
-          value="0"
+          value={readyDatasets !== undefined ? String(readyDatasets) : "—"}
           hint="ready for training"
           icon={Database}
         />
@@ -112,9 +117,9 @@ export default function DashboardPage() {
             <CardDescription>Runtime status</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
-            <HealthRow label="API Gateway" ok />
-            <HealthRow label="Model Runtime" ok />
-            <HealthRow label="RAG Indexer" ok />
+            <HealthRow label="API Gateway" />
+            <HealthRow label="Model Runtime" />
+            <HealthRow label="RAG Indexer" />
             <HealthRow label="Training Cluster" ok={training.data ? training.data.total > 0 : undefined} />
             <HealthRow label="Data Pipeline" />
           </CardContent>
@@ -204,7 +209,7 @@ export default function DashboardPage() {
 
 function HealthRow({
   label,
-  ok = true,
+  ok,
 }: {
   label: string;
   ok?: boolean;
@@ -213,12 +218,18 @@ function HealthRow({
     <div className="flex items-center justify-between text-sm">
       <span className="flex items-center gap-2">
         <span
-          className={`size-2 rounded-full ${ok ? "bg-emerald-500" : "bg-amber-500"}`}
+          className={`size-2 rounded-full ${
+            ok === undefined
+              ? "bg-muted-foreground/40"
+              : ok
+                ? "bg-emerald-500"
+                : "bg-amber-500"
+          }`}
         />
         {label}
       </span>
       <span className="text-xs text-muted-foreground">
-        {ok ? "Operational" : "No data"}
+        {ok === undefined ? "Unavailable" : ok ? "Operational" : "No data"}
       </span>
     </div>
   );

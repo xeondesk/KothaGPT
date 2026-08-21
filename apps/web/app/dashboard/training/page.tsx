@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { Gauge, Plus } from "lucide-react";
 import {
   Card,
@@ -63,7 +64,12 @@ export default function TrainingPage() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {jobs.map((job) => (
-            <Card key={job.id} className="flex flex-col gap-4">
+            <Link
+              key={job.id}
+              href={`/dashboard/training/${job.id}`}
+              className="block rounded-xl border border-transparent transition-colors hover:border-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <Card className="flex flex-col gap-4">
               <CardHeader className="pb-2">
                 <div className="flex items-start justify-between">
                   <div>
@@ -101,7 +107,8 @@ export default function TrainingPage() {
                   <span>{job.memoryGB.toFixed(1)} GB</span>
                 </div>
               </div>
-            </Card>
+              </Card>
+            </Link>
           ))}
         </div>
       )}

@@ -9,6 +9,7 @@ import { trainingApi } from "@/lib/api/training";
 import { knowledgeApi } from "@/lib/api/knowledge";
 import { agentsApi } from "@/lib/api/agents";
 import { evaluationsApi } from "@/lib/api/evaluations";
+import { usageApi } from "@/lib/api/usage";
 import type { TrainingJob } from "@/types/training";
 
 export function useMe() {
@@ -141,6 +142,13 @@ export function useEvaluations() {
 
 export function useBenchmarks() {
   return useQuery({ queryKey: ["benchmarks"], queryFn: evaluationsApi.benchmarks });
+}
+
+export function useUsageSummary() {
+  return useQuery({
+    queryKey: ["usage", "summary"],
+    queryFn: () => usageApi.summary("30d"),
+  });
 }
 
 export function useCreateEvaluation() {

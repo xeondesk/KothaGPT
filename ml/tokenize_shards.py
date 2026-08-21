@@ -22,6 +22,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import shutil
 import sys
 from array import array
 from pathlib import Path
@@ -169,6 +170,15 @@ def tokenize_corpus(
 
     train = _tokenize_split(train_dir, tokenizer, block_size, out_dir / "train")
     validation = _tokenize_split(val_dir, tokenizer, block_size, out_dir / "validation")
+
+    for name, result in (("train", train), ("validation", validation)):
+        if result["n_blocks"] == 0:
+            shutil.rmtree(out_dir, ignore_errors=True)
+            raise ValueError(
+                f"{name} split produced 0 complete blocks at block_size={block_size} "
+                f"({result['n_tokens']} tokens available); use a larger corpus or a "
+                f"smaller --block-size"
+            )
 
     top = {
         "format": "uint32 blocks",

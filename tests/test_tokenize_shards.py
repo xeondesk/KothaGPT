@@ -141,6 +141,18 @@ def test_rejects_non_positive_block_size(tmp_path):
     assert not any((base / "corpus").rglob("out*"))
 
 
+def test_rejects_block_size_larger_than_corpus(tmp_path):
+    """A split that cannot fill a single block must fail fast, not write an
+    empty artifact (which only surfaces later as a confusing trainer error)."""
+    base = tmp_path / "base"
+    corpus = _make_corpus(base / "corpus")
+    tok = _make_tokenizer(base / "tok")
+    with pytest.raises(ValueError, match="0 complete blocks"):
+        tokenize_corpus(corpus, tok, block_size=1_000_000, out_root=base / "out")
+    # No partial artifact or CURRENT pointer is left behind.
+    assert not any((base / "out").iterdir())
+
+
 def test_matches_trainer_build_blocks(tokenized):
     """Blocks must equal ml/trainer/dataset.build_blocks over the train split."""
     pytest.importorskip("torch")

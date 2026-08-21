@@ -19,7 +19,13 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { useModels, useTrainingJobs, useConversations, useDatasets, useUsageSummary } from "@/hooks";
+import {
+  useModels,
+  useTrainingJobs,
+  useConversations,
+  useDatasets,
+  useUsageSummary,
+} from "@/hooks";
 
 function StatCard({
   title,
@@ -120,7 +126,10 @@ export default function DashboardPage() {
             <HealthRow label="API Gateway" />
             <HealthRow label="Model Runtime" />
             <HealthRow label="RAG Indexer" />
-            <HealthRow label="Training Cluster" ok={training.data ? training.data.total > 0 : undefined} />
+            <HealthRow
+              label="Training Cluster"
+              ok={training.data ? training.data.total > 0 : undefined}
+            />
             <HealthRow label="Data Pipeline" />
           </CardContent>
         </Card>
@@ -185,11 +194,14 @@ export default function DashboardPage() {
                       <div>
                         <p className="text-sm">{j.name}</p>
                         <p className="text-xs text-muted-foreground">
-                          step {j.step.toLocaleString()} · loss {j.loss.toFixed(2)}
+                          step {j.step.toLocaleString()} · loss{" "}
+                          {j.loss.toFixed(2)}
                         </p>
                       </div>
                     </div>
-                    <Badge variant={j.status === "running" ? "success" : "secondary"}>
+                    <Badge
+                      variant={j.status === "running" ? "success" : "secondary"}
+                    >
                       {j.status}
                     </Badge>
                   </div>
@@ -207,13 +219,7 @@ export default function DashboardPage() {
   );
 }
 
-function HealthRow({
-  label,
-  ok,
-}: {
-  label: string;
-  ok?: boolean;
-}) {
+function HealthRow({ label, ok }: { label: string; ok?: boolean }) {
   return (
     <div className="flex items-center justify-between text-sm">
       <span className="flex items-center gap-2">

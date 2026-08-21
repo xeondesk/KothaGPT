@@ -24,7 +24,10 @@ import { DatasetUploadDialog } from "@/components/dataset/upload-dialog";
 import { useDatasets } from "@/hooks";
 import type { DatasetStatus } from "@/types/dataset";
 
-const statusBadge: Record<DatasetStatus, "success" | "warning" | "secondary" | "destructive"> = {
+const statusBadge: Record<
+  DatasetStatus,
+  "success" | "warning" | "secondary" | "destructive"
+> = {
   ready: "success",
   failed: "destructive",
   uploading: "warning",
@@ -100,7 +103,9 @@ export default function DatasetsPage() {
                   <TableCell>
                     <div>
                       <p className="font-medium">{d.name}</p>
-                      <p className="text-xs text-muted-foreground">v{d.version}</p>
+                      <p className="text-xs text-muted-foreground">
+                        v{d.version}
+                      </p>
                     </div>
                   </TableCell>
                   <TableCell className="text-muted-foreground">
@@ -109,7 +114,9 @@ export default function DatasetsPage() {
                   <TableCell>{d.records.toLocaleString()}</TableCell>
                   <TableCell>{formatTokens(d.tokens)}</TableCell>
                   <TableCell>
-                    {d.qualityScore > 0 ? `${d.qualityScore.toFixed(1)} / 100` : "—"}
+                    {d.qualityScore > 0
+                      ? `${d.qualityScore.toFixed(1)} / 100`
+                      : "—"}
                   </TableCell>
                   <TableCell>
                     <Badge variant={statusBadge[d.status]}>{d.status}</Badge>

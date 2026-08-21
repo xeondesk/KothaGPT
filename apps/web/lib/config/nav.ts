@@ -42,7 +42,11 @@ export const dashboardNav: NavGroup[] = [
       { title: "Models", href: "/dashboard/models", icon: Brain },
       { title: "Datasets", href: "/dashboard/datasets", icon: Database },
       { title: "Training", href: "/dashboard/training", icon: Gauge },
-      { title: "Evaluations", href: "/dashboard/evaluations", icon: FlaskConical },
+      {
+        title: "Evaluations",
+        href: "/dashboard/evaluations",
+        icon: FlaskConical,
+      },
       { title: "Knowledge", href: "/dashboard/knowledge", icon: Library },
       { title: "Agents", href: "/dashboard/agents", icon: Bot },
       { title: "Tools", href: "/dashboard/tools", icon: SquareTerminal },
@@ -51,7 +55,11 @@ export const dashboardNav: NavGroup[] = [
   {
     label: "Developer",
     items: [
-      { title: "Playground", href: "/dashboard/playground", icon: TerminalSquare },
+      {
+        title: "Playground",
+        href: "/dashboard/playground",
+        icon: TerminalSquare,
+      },
       { title: "API Keys", href: "/dashboard/api-keys", icon: KeyRound },
       { title: "Usage", href: "/dashboard/usage", icon: Sparkles },
     ],

@@ -28,7 +28,8 @@ export function SidebarContent() {
                   className={cn(
                     buttonVariants({ variant: "ghost", size: "sm" }),
                     "justify-start gap-3 font-normal",
-                    active && "bg-accent text-accent-foreground hover:bg-accent"
+                    active &&
+                      "bg-accent text-accent-foreground hover:bg-accent",
                   )}
                 >
                   <item.icon className="size-4" />

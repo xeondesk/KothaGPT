@@ -91,7 +91,7 @@ export function useStream(): UseStreamReturn {
             stream: true,
           },
           onEvent,
-          abortRef.current.signal
+          abortRef.current.signal,
         );
       } catch (err) {
         if (!(err instanceof DOMException && err.name === "AbortError")) {
@@ -115,7 +115,7 @@ export function useStream(): UseStreamReturn {
       addToolCall,
       updateMessage,
       clearToolCalls,
-    ]
+    ],
   );
 
   const sendMessage = React.useCallback(
@@ -129,7 +129,7 @@ export function useStream(): UseStreamReturn {
       addMessage(userMessage);
       await runStream([...toApiMessages(messages), userMessage]);
     },
-    [messages, addMessage, runStream]
+    [messages, addMessage, runStream],
   );
 
   const regenerate = React.useCallback(
@@ -139,7 +139,7 @@ export function useStream(): UseStreamReturn {
       updateMessage(messageId, { content: "" });
       await runStream(toApiMessages(messages.slice(0, idx)));
     },
-    [messages, updateMessage, runStream]
+    [messages, updateMessage, runStream],
   );
 
   const stop = React.useCallback(() => {

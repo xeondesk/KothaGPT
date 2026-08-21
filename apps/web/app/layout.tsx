@@ -8,10 +8,15 @@ export const metadata: Metadata = {
     default: "Kotha GPT",
     template: "%s · Kotha GPT",
   },
-  description: "Bangla-first AI platform — models, datasets, training, evaluation, RAG and agents.",
+  description:
+    "Bangla-first AI platform — models, datasets, training, evaluation, RAG and agents.",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="bn" className="dark">
       <body className="min-h-svh bg-background font-sans antialiased">

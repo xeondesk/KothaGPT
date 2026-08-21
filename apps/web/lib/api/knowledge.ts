@@ -38,7 +38,11 @@ export interface KnowledgeApi {
   }): Promise<KnowledgeBase>;
   ingestDocuments(id: string, files: File[]): Promise<KnowledgeBase>;
   ingestUrl(id: string, url: string): Promise<KnowledgeBase>;
-  retrieve(id: string, query: string, topK?: number): Promise<KnowledgeRetrieval>;
+  retrieve(
+    id: string,
+    query: string,
+    topK?: number,
+  ): Promise<KnowledgeRetrieval>;
   remove(id: string): Promise<void>;
 }
 
@@ -51,7 +55,7 @@ export const knowledgeApi: KnowledgeApi = {
     files.forEach((f) => form.append("files", f));
     return post<KnowledgeBase>(
       `/v1/knowledge/${encodeURIComponent(id)}/ingest`,
-      form
+      form,
     );
   },
   ingestUrl: (id, url) =>
@@ -61,7 +65,7 @@ export const knowledgeApi: KnowledgeApi = {
   retrieve: (id, query, topK = 5) =>
     post<KnowledgeRetrieval>(
       `/v1/knowledge/${encodeURIComponent(id)}/retrieve`,
-      { query, topK }
+      { query, topK },
     ),
   remove: (id) => del<void>(`/v1/knowledge/${encodeURIComponent(id)}`),
 };

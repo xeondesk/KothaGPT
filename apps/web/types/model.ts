@@ -1,4 +1,5 @@
-export type ModelStatus = "ready" | "training" | "queued" | "failed" | "inactive";
+export type ModelStatus =
+  "ready" | "training" | "queued" | "failed" | "inactive";
 
 export interface Model {
   id: string;

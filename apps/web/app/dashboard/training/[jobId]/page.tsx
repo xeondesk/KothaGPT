@@ -23,7 +23,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useTrainingJob, useTrainingCheckpoints, useTrainingControl } from "@/hooks";
+import {
+  useTrainingJob,
+  useTrainingCheckpoints,
+  useTrainingControl,
+} from "@/hooks";
 
 export default function TrainingJobDetailPage() {
   const params = useParams<{ jobId: string }>();
@@ -68,7 +72,9 @@ export default function TrainingJobDetailPage() {
             </Link>
           </Button>
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">{job.name}</h1>
+            <h1 className="text-2xl font-semibold tracking-tight">
+              {job.name}
+            </h1>
             <p className="text-sm text-muted-foreground">
               {job.model} · {job.dataset} · {job.tokenizer}
             </p>
@@ -80,7 +86,10 @@ export default function TrainingJobDetailPage() {
         <div className="flex gap-2">
           {job.status === "running" ? (
             <>
-              <Button variant="outline" onClick={() => control.mutate({ action: "pause" })}>
+              <Button
+                variant="outline"
+                onClick={() => control.mutate({ action: "pause" })}
+              >
                 <Pause />
                 Pause
               </Button>
@@ -111,14 +120,18 @@ export default function TrainingJobDetailPage() {
           <CardHeader>
             <CardTitle>Progress</CardTitle>
             <CardDescription>
-              step {job.step.toLocaleString()} / {job.totalSteps.toLocaleString()}
+              step {job.step.toLocaleString()} /{" "}
+              {job.totalSteps.toLocaleString()}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <ProgressBar value={job.progress} className="h-2" />
             <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3">
               <Metric label="Loss" value={job.loss.toFixed(3)} />
-              <Metric label="Learning rate" value={job.learningRate.toExponential(2)} />
+              <Metric
+                label="Learning rate"
+                value={job.learningRate.toExponential(2)}
+              />
               <Metric label="Tokens" value={formatTokens(job.tokens)} />
               <Metric label="GPU" value={`${job.gpuUtilization.toFixed(1)}%`} />
               <Metric label="Memory" value={`${job.memoryGB.toFixed(1)} GB`} />
@@ -170,7 +183,9 @@ export default function TrainingJobDetailPage() {
                 </TableBody>
               </Table>
             ) : (
-              <p className="text-sm text-muted-foreground">No checkpoints saved yet.</p>
+              <p className="text-sm text-muted-foreground">
+                No checkpoints saved yet.
+              </p>
             )}
           </CardContent>
         </Card>
@@ -209,7 +224,9 @@ function Metric({ label, value }: { label: string; value: string }) {
 }
 
 function LogLine({ children }: { children: React.ReactNode }) {
-  return <div className="whitespace-pre-wrap text-muted-foreground">{children}</div>;
+  return (
+    <div className="whitespace-pre-wrap text-muted-foreground">{children}</div>
+  );
 }
 
 function formatTokens(n: number): string {

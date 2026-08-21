@@ -16,7 +16,12 @@ export function ConversationSidebar({ onNew }: { onNew: () => void }) {
   return (
     <div className="flex w-64 shrink-0 flex-col border-r border-border bg-card">
       <div className="p-3">
-        <Button variant="outline" size="sm" className="w-full justify-start gap-2" onClick={onNew}>
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full justify-start gap-2"
+          onClick={onNew}
+        >
           <Plus className="size-4" />
           New chat
         </Button>
@@ -36,7 +41,7 @@ export function ConversationSidebar({ onNew }: { onNew: () => void }) {
                 href={`/dashboard/chat/${c.id}`}
                 className={cn(
                   "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent",
-                  activeId === c.id && "bg-accent"
+                  activeId === c.id && "bg-accent",
                 )}
               >
                 <MessageSquare className="size-3.5 shrink-0 text-muted-foreground" />
@@ -45,7 +50,9 @@ export function ConversationSidebar({ onNew }: { onNew: () => void }) {
             ))}
           </div>
         ) : (
-          <p className="px-2 text-xs text-muted-foreground">No conversations yet.</p>
+          <p className="px-2 text-xs text-muted-foreground">
+            No conversations yet.
+          </p>
         )}
       </div>
     </div>

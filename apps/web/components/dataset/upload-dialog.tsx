@@ -74,7 +74,7 @@ export function DatasetUploadDialog({
             className={cn(
               "flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border p-8 text-center transition-colors",
               dragging && "border-primary bg-primary/5",
-              file && "border-primary/50"
+              file && "border-primary/50",
             )}
             onDragOver={(e) => {
               e.preventDefault();
@@ -133,7 +133,10 @@ export function DatasetUploadDialog({
           >
             Cancel
           </Button>
-          <Button onClick={() => void submit()} disabled={!file || upload.isPending}>
+          <Button
+            onClick={() => void submit()}
+            disabled={!file || upload.isPending}
+          >
             {upload.isPending ? "Uploading…" : "Upload"}
           </Button>
         </DialogFooter>

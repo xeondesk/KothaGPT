@@ -108,7 +108,11 @@ export function CreateJobDialog({
         <form onSubmit={handleSubmit(submit)} className="flex flex-col gap-4">
           <div className="flex flex-col gap-2">
             <Label htmlFor="job-name">Job name</Label>
-            <Input id="job-name" placeholder="BanglaLM-v0.1" {...register("name")} />
+            <Input
+              id="job-name"
+              placeholder="BanglaLM-v0.1"
+              {...register("name")}
+            />
             {errors.name && (
               <p className="text-xs text-destructive">{errors.name.message}</p>
             )}
@@ -130,7 +134,9 @@ export function CreateJobDialog({
                 ))}
               </select>
               {errors.model && (
-                <p className="text-xs text-destructive">{errors.model.message}</p>
+                <p className="text-xs text-destructive">
+                  {errors.model.message}
+                </p>
               )}
             </div>
             <div className="flex flex-col gap-2">
@@ -148,7 +154,9 @@ export function CreateJobDialog({
                 ))}
               </select>
               {errors.dataset && (
-                <p className="text-xs text-destructive">{errors.dataset.message}</p>
+                <p className="text-xs text-destructive">
+                  {errors.dataset.message}
+                </p>
               )}
             </div>
           </div>
@@ -174,35 +182,56 @@ export function CreateJobDialog({
               htmlFor="job-batch-size"
               error={errors.batchSize?.message}
             >
-              <Input id="job-batch-size" type="number" {...register("batchSize")} />
+              <Input
+                id="job-batch-size"
+                type="number"
+                {...register("batchSize")}
+              />
             </Field>
             <Field
               label="Learning rate"
               htmlFor="job-learning-rate"
               error={errors.learningRate?.message}
             >
-              <Input id="job-learning-rate" type="number" step="0.0001" {...register("learningRate")} />
+              <Input
+                id="job-learning-rate"
+                type="number"
+                step="0.0001"
+                {...register("learningRate")}
+              />
             </Field>
             <Field
               label="Context length"
               htmlFor="job-context-length"
               error={errors.contextLength?.message}
             >
-              <Input id="job-context-length" type="number" {...register("contextLength")} />
+              <Input
+                id="job-context-length"
+                type="number"
+                {...register("contextLength")}
+              />
             </Field>
             <Field
               label="GPUs"
               htmlFor="job-gpu-count"
               error={errors.gpuCount?.message}
             >
-              <Input id="job-gpu-count" type="number" {...register("gpuCount")} />
+              <Input
+                id="job-gpu-count"
+                type="number"
+                {...register("gpuCount")}
+              />
             </Field>
             <Field
               label="Grad accumulation"
               htmlFor="job-grad-accumulation"
               error={errors.gradAccumulation?.message}
             >
-              <Input id="job-grad-accumulation" type="number" {...register("gradAccumulation")} />
+              <Input
+                id="job-grad-accumulation"
+                type="number"
+                {...register("gradAccumulation")}
+              />
             </Field>
             <Field label="Precision" htmlFor="job-precision">
               <select
@@ -218,7 +247,11 @@ export function CreateJobDialog({
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+            >
               Cancel
             </Button>
             <Button type="submit" disabled={create.isPending}>

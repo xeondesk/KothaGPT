@@ -47,8 +47,7 @@ export const useChatStore = create<ChatState>((set) => ({
   activeToolCalls: [],
   setConversationId: (conversationId) => set({ conversationId }),
   setMessages: (messages) => set({ messages }),
-  addMessage: (message) =>
-    set((s) => ({ messages: [...s.messages, message] })),
+  addMessage: (message) => set((s) => ({ messages: [...s.messages, message] })),
   updateMessage: (id, patch) =>
     set((s) => ({
       messages: s.messages.map((m) => (m.id === id ? { ...m, ...patch } : m)),
@@ -56,7 +55,7 @@ export const useChatStore = create<ChatState>((set) => ({
   appendDelta: (id, content) =>
     set((s) => ({
       messages: s.messages.map((m) =>
-        m.id === id ? { ...m, content: m.content + content } : m
+        m.id === id ? { ...m, content: m.content + content } : m,
       ),
     })),
   clearMessages: () => set({ messages: [], error: null }),
@@ -71,7 +70,7 @@ export const useChatStore = create<ChatState>((set) => ({
   updateToolCallResult: (id, result) =>
     set((s) => ({
       activeToolCalls: s.activeToolCalls.map((t) =>
-        t.id === id ? { ...t, result } : t
+        t.id === id ? { ...t, result } : t,
       ),
     })),
   clearToolCalls: () => set({ activeToolCalls: [] }),

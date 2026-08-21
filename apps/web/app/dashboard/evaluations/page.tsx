@@ -28,14 +28,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  useEvaluations,
-  useDeleteEvaluation,
-  useBenchmarks,
-} from "@/hooks";
+import { useEvaluations, useDeleteEvaluation, useBenchmarks } from "@/hooks";
 import type { EvaluationRun, EvalStatus } from "@/lib/api/evaluations";
 
-const statusBadge: Record<EvalStatus, "success" | "warning" | "secondary" | "destructive"> = {
+const statusBadge: Record<
+  EvalStatus,
+  "success" | "warning" | "secondary" | "destructive"
+> = {
   completed: "success",
   running: "warning",
   queued: "secondary",
@@ -102,9 +101,7 @@ export default function EvaluationsPage() {
         </Card>
       ) : (
         <>
-          {completed.length >= 2 && (
-            <ComparisonTable runs={completed} />
-          )}
+          {completed.length >= 2 && <ComparisonTable runs={completed} />}
           <Card>
             <Table>
               <TableHeader>
@@ -181,7 +178,7 @@ export default function EvaluationsPage() {
 
 function ComparisonTable({ runs }: { runs: EvaluationRun[] }) {
   const taskKeys = Array.from(
-    new Set(runs.flatMap((r) => Object.keys(r.scores)))
+    new Set(runs.flatMap((r) => Object.keys(r.scores))),
   );
 
   return (

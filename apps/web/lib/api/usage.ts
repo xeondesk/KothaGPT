@@ -31,9 +31,7 @@ export const usageApi: UsageApi = {
   },
   timeSeries: (range = "30d", granularity = "day") => {
     const params = new URLSearchParams({ range, granularity });
-    return get<UsageMetric[]>(
-      `/v1/usage/timeseries?${params.toString()}`
-    );
+    return get<UsageMetric[]>(`/v1/usage/timeseries?${params.toString()}`);
   },
   byModel: () => get<Record<string, UsageMetric>>("/v1/usage/by-model"),
 };

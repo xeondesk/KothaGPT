@@ -48,7 +48,7 @@ export default function ChatPage() {
         onSuccess: (conversation) => {
           router.push(`/dashboard/chat/${conversation.id}`);
         },
-      }
+      },
     );
   };
 
@@ -63,7 +63,13 @@ export default function ChatPage() {
     } else {
       clearMessages();
     }
-  }, [conversationId, history.data, setConversationId, setMessages, clearMessages]);
+  }, [
+    conversationId,
+    history.data,
+    setConversationId,
+    setMessages,
+    clearMessages,
+  ]);
 
   return (
     <div className="flex -m-6 h-[calc(100vh-3.5rem)]">
@@ -88,7 +94,9 @@ export default function ChatPage() {
                   min="0"
                   max="2"
                   value={temperature}
-                  onChange={(e) => setTemperature(parseFloat(e.target.value) || 0)}
+                  onChange={(e) =>
+                    setTemperature(parseFloat(e.target.value) || 0)
+                  }
                   className="h-8 w-20"
                 />
               </div>
@@ -100,7 +108,9 @@ export default function ChatPage() {
                   value={maxTokens}
                   onChange={(e) => {
                     const parsed = parseInt(e.target.value, 10);
-                    setMaxTokens(Number.isNaN(parsed) || parsed < 1 ? 1 : parsed);
+                    setMaxTokens(
+                      Number.isNaN(parsed) || parsed < 1 ? 1 : parsed,
+                    );
                   }}
                   className="h-8 w-20"
                 />
@@ -120,7 +130,11 @@ export default function ChatPage() {
           />
         </div>
 
-        <ChatComposer onSend={(content) => void sendMessage(content)} onStop={stop} streaming={streaming} />
+        <ChatComposer
+          onSend={(content) => void sendMessage(content)}
+          onStop={stop}
+          streaming={streaming}
+        />
       </div>
     </div>
   );

@@ -17,7 +17,7 @@ export interface ChatApi {
   stream(
     request: ChatRequest,
     onEvent: (event: ChatStreamEvent) => void,
-    signal?: AbortSignal
+    signal?: AbortSignal,
   ): Promise<void>;
 }
 
@@ -34,7 +34,7 @@ export const chatApi: ChatApi = {
     const stream = await postStream(
       "/v1/chat",
       { ...request, stream: true },
-      { signal }
+      { signal },
     );
     const reader = stream.getReader();
     const decoder = new TextDecoder();

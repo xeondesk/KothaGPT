@@ -1,7 +1,6 @@
 import type { ApiError, ApiResult, Body, RequestOptions } from "@/types/api";
 
-const BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 const TOKEN_KEY = "kothagpt.access_token";
 
@@ -21,7 +20,7 @@ export class ApiClientError extends Error {
     message: string,
     public readonly status: number,
     public readonly code?: string,
-    public readonly details?: unknown
+    public readonly details?: unknown,
   ) {
     super(message);
     this.name = "ApiClientError";
@@ -33,7 +32,7 @@ async function request<T>(
   options: RequestOptions = {},
   init: Omit<RequestInit, "signal" | "headers"> & {
     headers?: Record<string, string>;
-  } = {}
+  } = {},
 ): Promise<T> {
   const headers: Record<string, string> = {
     ...options.headers,
@@ -56,7 +55,7 @@ async function request<T>(
       (body as ApiError)?.message ?? response.statusText,
       response.status,
       (body as ApiError)?.code,
-      (body as ApiError)?.details
+      (body as ApiError)?.details,
     );
   }
 
@@ -68,7 +67,7 @@ async function requestStream(
   options: RequestOptions = {},
   init: Omit<RequestInit, "signal" | "headers"> & {
     headers?: Record<string, string>;
-  } = {}
+  } = {},
 ): Promise<ReadableStream<Uint8Array>> {
   const headers: Record<string, string> = {
     ...options.headers,
@@ -90,7 +89,7 @@ async function requestStream(
       (body as ApiError)?.message ?? response.statusText,
       response.status,
       (body as ApiError)?.code,
-      (body as ApiError)?.details
+      (body as ApiError)?.details,
     );
   }
 
@@ -112,7 +111,7 @@ export function get<T>(path: string, options?: RequestOptions): Promise<T> {
 export function post<T>(
   path: string,
   body?: Body,
-  options?: RequestOptions
+  options?: RequestOptions,
 ): Promise<T> {
   const headers: Record<string, string> = {};
   if (body instanceof FormData) {
@@ -130,7 +129,7 @@ export function post<T>(
 function postStream(
   path: string,
   body?: Body,
-  options?: RequestOptions
+  options?: RequestOptions,
 ): Promise<ReadableStream<Uint8Array>> {
   const headers: Record<string, string> =
     body !== undefined && !(body instanceof FormData)
@@ -146,7 +145,7 @@ function postStream(
 export function put<T>(
   path: string,
   body?: Body,
-  options?: RequestOptions
+  options?: RequestOptions,
 ): Promise<T> {
   const headers: Record<string, string> =
     body !== undefined && !(body instanceof FormData)
@@ -162,7 +161,7 @@ export function put<T>(
 export function patch<T>(
   path: string,
   body?: Body,
-  options?: RequestOptions
+  options?: RequestOptions,
 ): Promise<T> {
   const headers: Record<string, string> =
     body !== undefined && !(body instanceof FormData)

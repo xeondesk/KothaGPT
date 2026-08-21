@@ -35,9 +35,7 @@ export function ModelSelector({
         <DropdownMenuLabel>Model</DropdownMenuLabel>
         <DropdownMenuSeparator />
         {models.length === 0 && (
-          <DropdownMenuItem disabled>
-            {current?.name ?? value}
-          </DropdownMenuItem>
+          <DropdownMenuItem disabled>{current?.name ?? value}</DropdownMenuItem>
         )}
         {models.map((m) => (
           <DropdownMenuItem key={m.id} onSelect={() => onChange(m.id)}>

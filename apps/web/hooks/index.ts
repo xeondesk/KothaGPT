@@ -141,7 +141,10 @@ export function useEvaluations() {
 }
 
 export function useBenchmarks() {
-  return useQuery({ queryKey: ["benchmarks"], queryFn: evaluationsApi.benchmarks });
+  return useQuery({
+    queryKey: ["benchmarks"],
+    queryFn: evaluationsApi.benchmarks,
+  });
 }
 
 export function useUsageSummary() {

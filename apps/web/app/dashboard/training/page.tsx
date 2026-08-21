@@ -17,7 +17,10 @@ import { CreateJobDialog } from "@/components/training/create-job-dialog";
 import { useTrainingJobs } from "@/hooks";
 import type { TrainingStatus } from "@/types/training";
 
-const statusBadge: Record<TrainingStatus, "success" | "warning" | "secondary" | "destructive"> = {
+const statusBadge: Record<
+  TrainingStatus,
+  "success" | "warning" | "secondary" | "destructive"
+> = {
   running: "success",
   paused: "warning",
   pending: "secondary",
@@ -70,43 +73,48 @@ export default function TrainingPage() {
               className="block rounded-xl border border-transparent transition-colors hover:border-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <Card className="flex flex-col gap-4">
-              <CardHeader className="pb-2">
-                <div className="flex items-start justify-between">
+                <CardHeader className="pb-2">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <CardTitle>{job.name}</CardTitle>
+                      <CardDescription>
+                        {job.model} · {job.dataset}
+                      </CardDescription>
+                    </div>
+                    <Badge variant={statusBadge[job.status]}>
+                      {job.status}
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <div className="flex flex-col gap-3 px-6 pb-4">
                   <div>
-                    <CardTitle>{job.name}</CardTitle>
-                    <CardDescription>
-                      {job.model} · {job.dataset}
-                    </CardDescription>
+                    <div className="mb-1 flex items-center justify-between text-xs text-muted-foreground">
+                      <span>
+                        step {job.step.toLocaleString()} /{" "}
+                        {job.totalSteps.toLocaleString()}
+                      </span>
+                      <span>{Math.round(job.progress)}%</span>
+                    </div>
+                    <ProgressBar value={job.progress} />
                   </div>
-                  <Badge variant={statusBadge[job.status]}>{job.status}</Badge>
-                </div>
-              </CardHeader>
-              <div className="flex flex-col gap-3 px-6 pb-4">
-                <div>
-                  <div className="mb-1 flex items-center justify-between text-xs text-muted-foreground">
-                    <span>
-                      step {job.step.toLocaleString()} /{" "}
-                      {job.totalSteps.toLocaleString()}
-                    </span>
-                    <span>{Math.round(job.progress)}%</span>
-                  </div>
-                  <ProgressBar value={job.progress} />
-                </div>
 
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <Metric label="Loss" value={job.loss.toFixed(2)} />
-                  <Metric label="LR" value={job.learningRate.toExponential(2)} />
-                  <Metric
-                    label="Tokens"
-                    value={formatTokens(job.tokens)}
-                  />
-                  <Metric label="GPU" value={`${job.gpuUtilization.toFixed(0)}%`} />
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <Metric label="Loss" value={job.loss.toFixed(2)} />
+                    <Metric
+                      label="LR"
+                      value={job.learningRate.toExponential(2)}
+                    />
+                    <Metric label="Tokens" value={formatTokens(job.tokens)} />
+                    <Metric
+                      label="GPU"
+                      value={`${job.gpuUtilization.toFixed(0)}%`}
+                    />
+                  </div>
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>{job.precision}</span>
+                    <span>{job.memoryGB.toFixed(1)} GB</span>
+                  </div>
                 </div>
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>{job.precision}</span>
-                  <span>{job.memoryGB.toFixed(1)} GB</span>
-                </div>
-              </div>
               </Card>
             </Link>
           ))}

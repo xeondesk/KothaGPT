@@ -36,7 +36,7 @@ export function ScoreCard({ scores }: { scores: Record<string, number> }) {
               ? "bg-emerald-500/15 text-emerald-500"
               : avg >= 40
                 ? "bg-amber-500/15 text-amber-500"
-                : "bg-destructive/15 text-destructive"
+                : "bg-destructive/15 text-destructive",
           )}
         >
           {avg >= 70 ? "Strong" : avg >= 40 ? "Developing" : "Weak"}

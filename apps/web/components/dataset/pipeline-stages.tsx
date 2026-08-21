@@ -33,11 +33,14 @@ export function PipelineStages({ status }: { status: string }) {
         const done = isReady || (!inactive && i < current);
         const active = !isReady && !inactive && i === current;
         return (
-          <div key={stage} className="flex flex-1 flex-col items-center gap-1.5">
+          <div
+            key={stage}
+            className="flex flex-1 flex-col items-center gap-1.5"
+          >
             <div
               className={cn(
                 "flex h-1.5 w-full rounded-full transition-colors",
-                done || active ? "bg-primary" : "bg-muted"
+                done || active ? "bg-primary" : "bg-muted",
               )}
             />
             <span
@@ -47,7 +50,7 @@ export function PipelineStages({ status }: { status: string }) {
                   ? "text-primary"
                   : done
                     ? "text-muted-foreground"
-                    : "text-muted-foreground/50"
+                    : "text-muted-foreground/50",
               )}
             >
               {stage}

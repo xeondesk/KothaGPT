@@ -9,7 +9,13 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import type { ChatMessage } from "@/types/chat";
 
-function CodeBlock({ children, className }: { children: string; className?: string }) {
+function CodeBlock({
+  children,
+  className,
+}: {
+  children: string;
+  className?: string;
+}) {
   const [copied, setCopied] = React.useState(false);
   const code = String(children ?? "");
 
@@ -33,7 +39,11 @@ function CodeBlock({ children, className }: { children: string; className?: stri
               .catch(() => {});
           }}
         >
-          {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+          {copied ? (
+            <Check className="size-3.5" />
+          ) : (
+            <Copy className="size-3.5" />
+          )}
         </Button>
       </div>
       <pre className="overflow-x-auto p-3 text-sm">
@@ -48,7 +58,12 @@ function MessageBubble({ message }: { message: ChatMessage }) {
 
   return (
     <div className={cn("flex gap-3", isUser && "flex-row-reverse")}>
-      <Avatar className={cn("mt-1 size-8", isUser && "bg-primary text-primary-foreground")}>
+      <Avatar
+        className={cn(
+          "mt-1 size-8",
+          isUser && "bg-primary text-primary-foreground",
+        )}
+      >
         <AvatarFallback>
           {isUser ? <User className="size-4" /> : "AI"}
         </AvatarFallback>
@@ -59,7 +74,7 @@ function MessageBubble({ message }: { message: ChatMessage }) {
             "rounded-lg px-4 py-2 text-sm leading-relaxed",
             isUser
               ? "bg-primary text-primary-foreground"
-              : "border border-border bg-card"
+              : "border border-border bg-card",
           )}
         >
           {isUser ? (
@@ -85,7 +100,12 @@ function MessageBubble({ message }: { message: ChatMessage }) {
                   );
                 },
                 a: ({ children, href }) => (
-                  <a href={href} target="_blank" rel="noreferrer" className="text-primary underline">
+                  <a
+                    href={href}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-primary underline"
+                  >
                     {children}
                   </a>
                 ),

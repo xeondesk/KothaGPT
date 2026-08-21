@@ -1,4 +1,5 @@
-export type TrainingStatus = "pending" | "running" | "paused" | "completed" | "failed";
+export type TrainingStatus =
+  "pending" | "running" | "paused" | "completed" | "failed";
 
 export interface TrainingJob {
   id: string;

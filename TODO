@@ -108,7 +108,10 @@ Implementation plans (all linked from `docs/roadmap.md`)
 Master checklist: `docs/checklist.md` — every item auto-verified as covered by
 its mapped plan via `make plans-check` (scripts/check_plans.py).
 
-Cross-cutting: `docs/eval-plan.md` (benchmarks, human eval, regression gate),
+Cross-cutting: `docs/bootstrap-migration-plan.md` (platform-aware
+`scripts/bootstrap.sh` with `print_bootstrap_preview(platform)` dry-run,
+per-platform modules, Makefile delegation),
+`docs/eval-plan.md` (benchmarks, human eval, regression gate),
 `docs/infra-plan.md` (GPU cluster, serving, observability, DR),
 `docs/ecosystem-plan.md` (hubs, marketplaces, fine-tuning, hosted inference),
 `docs/security-plan.md` (injection, sandbox, secrets, supply chain, red-team),

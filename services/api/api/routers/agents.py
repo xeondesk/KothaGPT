@@ -3,12 +3,11 @@ from __future__ import annotations
 import json
 
 from fastapi import APIRouter, Depends, HTTPException
-
-from ..auth import require_api_token
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from ...core import backend_factory
+from ..auth import require_api_token
 from ..schemas import Agent, AgentRun, AgentRunRequest, AgentSpec
 
 router = APIRouter(

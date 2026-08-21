@@ -165,6 +165,26 @@ def test_split_is_deterministic_and_balanced():
     assert 0.05 < val / len(sets) < 0.2
 
 
+def test_ensure_nonempty_validation_promotes_closest_record():
+    records = [split.split_record({"text": f"doc {i}"}) for i in range(12)]
+    if any(r["split"] == "validation" for r in records):
+        records = [dict(r, split="train") for r in records]
+    fixed = split.ensure_nonempty_validation(records)
+    assert sum(1 for r in fixed if r["split"] == "validation") == 1
+    # Deterministic: same input, same promotion.
+    assert [r["split"] for r in split.ensure_nonempty_validation(records)] == [
+        r["split"] for r in fixed
+    ]
+    # The promoted record is the one closest to the validation threshold.
+    idx = min(range(len(records)), key=lambda i: split.split_key(records[i]["text"]))
+    assert fixed[idx]["split"] == "validation"
+    # Already-nonempty and tiny inputs pass through unchanged.
+    mixed = [{"text": "a", "split": "train"}, {"text": "b", "split": "validation"}]
+    assert split.ensure_nonempty_validation(mixed) == mixed
+    single = [{"text": "only", "split": "train"}]
+    assert split.ensure_nonempty_validation(single) == single
+
+
 def test_write_shards_gzip(tmp_path):
     records = [{"text": f"doc {i}", "id": str(i), "source": "t"} for i in range(5)]
     shards = io.write_shards(iter(records), tmp_path, shard_size=2, gzip_output=True)

@@ -220,6 +220,7 @@ def run_pipeline(cfg: PipelineConfig) -> dict:
 
     # 8. Deterministic train/validation split.
     split_records = [split.split_record(r, validation_ratio=cfg.validation_ratio) for r in deduped]
+    split_records = split.ensure_nonempty_validation(split_records)
     summary["train"] = sum(1 for r in split_records if r["split"] == "train")
     summary["validation"] = sum(1 for r in split_records if r["split"] == "validation")
 

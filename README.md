@@ -63,7 +63,10 @@ make bootstrap                                      # execute without prompt
 pwsh scripts/windows/bootstrap.ps1                  # native PowerShell alternative
 ```
 
-Prerequisites: Python 3.10+ and Node.js 18+ (corepack/pnpm). Optional Rust tooling: `scripts/install_rust`.
+Prerequisites: Node.js 18+ (corepack/pnpm). Missing Python, Go, and Rust
+toolchains are installed automatically via the platform package manager
+(apt/dnf/pacman, Homebrew, or winget); already-installed tools are never
+touched. Optional: `scripts/install_rust` for a standalone Rust setup.
 
 Run the API (mock backend) and try the CLI:
 

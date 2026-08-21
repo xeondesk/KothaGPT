@@ -96,6 +96,12 @@ Goal: fill the empty platform dirs with the actual setup steps per OS.
   equivalent pip step; winget hints for Python 3.12+.
 - All modules emit steps through the WS-1 contract; no module writes state
   directly.
+- Toolchain install: when Python, Go, or Rust (`cargo`) is missing, modules
+  emit install steps through the platform package manager — apt/dnf/pacman
+  (linux), Homebrew (macos), winget (windows, including `Rustlang.Rustup`);
+  Rust on linux/macos reuses `scripts/install_rust`. Present tools are never
+  reinstalled (idempotent), and the check phase validates the installer
+  instead of the toolchain.
 - Deliverables: three modules + a short "per-platform prerequisites" section
   in the README quick start.
 - Metric: on a fresh machine each module's emitted steps reach
@@ -163,6 +169,7 @@ final surface, then guards it forever.
 | Linux bootstrap module | WS-3 |
 | macOS bootstrap module | WS-3 |
 | Windows bootstrap module | WS-3 |
+| Toolchain install (Python/Go/Rust) | WS-3 |
 | `make bootstrap` single source of truth | WS-4 |
 | CI gate + regression tests | WS-5 |
 

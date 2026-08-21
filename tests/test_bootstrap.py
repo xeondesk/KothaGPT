@@ -36,6 +36,13 @@ def venv_is_ready(platform: str) -> bool:
     return (REPO_ROOT / ".venv" / leaf).exists()
 
 
+def assert_install_line(out: str, tool: str, fragment: str) -> None:
+    if shutil.which(tool):
+        assert fragment not in out, f"{tool} present but install step emitted"
+    else:
+        assert fragment in out, f"{tool} missing but no install step emitted"
+
+
 @requires_bash
 @pytest.mark.parametrize("platform", ["linux", "macos"])
 def test_dry_run_unix_preview(platform: str) -> None:
@@ -49,6 +56,34 @@ def test_dry_run_unix_preview(platform: str) -> None:
         assert "-m venv" not in out
     else:
         assert "python3 -m venv" in out
+
+
+@requires_bash
+def test_dry_run_installs_missing_toolchains() -> None:
+    go_fragments = {
+        "linux": "golang",
+        "macos": "brew install go",
+        "windows": "GoLang.Go",
+    }
+    for platform, go_fragment in go_fragments.items():
+        out = preview(platform)
+        assert_install_line(out, "go", go_fragment)
+        if shutil.which("cargo"):
+            assert "install_rust" not in out
+        else:
+            assert "install_rust" in out
+
+
+@requires_bash
+def test_linux_uses_detected_package_manager() -> None:
+    out = preview("linux")
+    signatures = {"apt-get": "apt-get install", "dnf": "dnf install", "pacman": "pacman -S"}
+    available = {pm: sig for pm, sig in signatures.items() if shutil.which(pm)}
+    needs_install = shutil.which("python3") is None or shutil.which("go") is None
+    if available and needs_install:
+        assert any(sig in out for sig in available.values())
+    elif not available:
+        assert "sudo" not in out
 
 
 @requires_bash
@@ -131,6 +166,8 @@ def test_windows_ps1_mirrors_shim() -> None:
     assert "Activate.ps1" in ps1
     assert "services/api/requirements.txt" in ps1
     assert "DryRun" in ps1
+    for winget_id in ("Python.Python.3.12", "GoLang.Go", "Rustlang.Rustup"):
+        assert winget_id in ps1
 
 
 def test_makefile_bootstrap_delegates_to_script() -> None:

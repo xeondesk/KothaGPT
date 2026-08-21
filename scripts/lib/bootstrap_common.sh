@@ -30,6 +30,16 @@ node_check() {
   require_cmd corepack "Install Node.js 18+ (bundles corepack): https://nodejs.org"
 }
 
+tool_missing() {
+  ! command -v "$1" >/dev/null 2>&1
+}
+
+rust_steps() {
+  if tool_missing cargo; then
+    emit "bash \"$REPO_ROOT/scripts/install_rust\""
+  fi
+}
+
 venv_python() {
   case "${BOOTSTRAP_PLATFORM:-}" in
     windows) printf '%s\n' "$REPO_ROOT/.venv/Scripts/python.exe" ;;

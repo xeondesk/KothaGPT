@@ -5,7 +5,19 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$steps = @(
+$steps = @()
+
+if (-not (Get-Command py -ErrorAction SilentlyContinue)) {
+    $steps += "winget install -e --id Python.Python.3.12"
+}
+if (-not (Get-Command go -ErrorAction SilentlyContinue)) {
+    $steps += "winget install -e --id GoLang.Go"
+}
+if (-not (Get-Command cargo -ErrorAction SilentlyContinue)) {
+    $steps += "winget install -e --id Rustlang.Rustup"
+}
+
+$steps += @(
     "py -m venv .venv",
     ". .venv\Scripts\Activate.ps1; python -m pip install --upgrade pip",
     ". .venv\Scripts\Activate.ps1; python -m pip install -r services/api/requirements.txt",

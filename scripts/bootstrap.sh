@@ -14,6 +14,9 @@ usage() {
   cat <<'EOF'
 Usage: scripts/bootstrap.sh [options]
 
+Installs missing Python/Go/Rust toolchains via the platform package manager,
+then bootstraps the Python venv and Node tooling.
+
 Options:
   --platform <linux|macos|windows>   Target platform (default: auto-detect)
   --dry-run, --preview               Print the steps without executing

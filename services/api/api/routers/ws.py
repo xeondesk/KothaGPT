@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import json
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 
 from ...core import backend_factory
+from ..auth import require_api_token_websocket
 from ..schemas import (
     AgentSpec,
     ChatCompletionRequest,
@@ -14,7 +15,10 @@ from ..schemas import (
     WsEnvelope,
 )
 
-router = APIRouter(tags=["websocket"])
+router = APIRouter(
+    tags=["websocket"],
+    dependencies=[Depends(require_api_token_websocket)],
+)
 
 _HANDLERS = {
     "ping": lambda p: {"pong": True},

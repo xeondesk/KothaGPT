@@ -1,12 +1,22 @@
+VENV := .venv
+PYTHON ?= $(VENV)/bin/python
+RUFF ?= $(VENV)/bin/ruff
+
+$(VENV):
+	python3 -m venv $(VENV)
+	$(PYTHON) -m pip install --upgrade pip
+	$(PYTHON) -m pip install -r services/api/requirements.txt
+	$(PYTHON) -m pip install ruff fakeredis
+
 bootstrap:
 	./scripts/bootstrap.sh --yes
 
-dev:
-	.venv/bin/uvicorn services.api.app:app --reload --host 0.0.0.0 --port 8000
+dev: | $(VENV)
+	$(PYTHON) -m uvicorn services.api.app:app --reload --host 0.0.0.0 --port 8000
 
 .PHONY: bootstrap-check
 
-bootstrap-check:
+bootstrap-check: | $(VENV)
 	bash -n scripts/bootstrap.sh scripts/lib/bootstrap_common.sh \
 		scripts/linux/bootstrap.sh scripts/macos/bootstrap.sh scripts/windows/bootstrap.sh
 	@if command -v shellcheck >/dev/null 2>&1; then \
@@ -18,43 +28,43 @@ bootstrap-check:
 	./scripts/bootstrap.sh --dry-run --platform linux
 	./scripts/bootstrap.sh --dry-run --platform macos
 	./scripts/bootstrap.sh --dry-run --platform windows
-	.venv/bin/python -m pytest tests/test_bootstrap.py
+	$(PYTHON) -m pytest tests/test_bootstrap.py
 
-data:
-	.venv/bin/python -m data.pipeline.cli run
+data: | $(VENV)
+	$(PYTHON) -m data.pipeline.cli run
 
-data-check:
-	.venv/bin/python -m data.pipeline.cli version
+data-check: | $(VENV)
+	$(PYTHON) -m data.pipeline.cli version
 
-tokenizer:
-	.venv/bin/python -m ml.tokenizer.cli experiments \
+tokenizer: | $(VENV)
+	$(PYTHON) -m ml.tokenizer.cli experiments \
 		--corpus data/processed/$$(cat data/processed/CURRENT 2>/dev/null)/train \
 		--out ml/tokenizer/artifacts
 
-test:
-	.venv/bin/python -m pytest tests
+test: | $(VENV)
+	$(PYTHON) -m pytest tests
 
-lint:
-	.venv/bin/ruff check .
+lint: | $(VENV)
+	$(RUFF) check .
 	cargo fmt --check --manifest-path packages/rust-sdk/Cargo.toml
 	pnpm lint
 
-format:
-	.venv/bin/ruff format .
+format: | $(VENV)
+	$(RUFF) format .
 	cargo fmt
 	pnpm format
 
 clean:
 	find . -type d -name __pycache__ -prune -exec rm -rf {} +
 
-data-validate:
+data-validate: | $(VENV)
 	@echo "Running data validation checks..."
-	.venv/bin/python -m data.pipeline.cli version
+	$(PYTHON) -m data.pipeline.cli version
 
 # WS-1/WS-2: pre-tokenize the processed corpus into uint32 block shards so
 # training never re-tokenizes. Idempotent; run again to regenerate.
-data-tokenize:
-	.venv/bin/python -m ml.tokenize_shards \
+data-tokenize: | $(VENV)
+	$(PYTHON) -m ml.tokenize_shards \
 		--corpus $$(cat data/processed/CURRENT 2>/dev/null) \
 		--tokenizer ml/tokenizer/artifacts/best \
 		--block-size 4096 \
@@ -63,49 +73,49 @@ data-tokenize:
 # WS-5: CPU smoke training. Tokenize at the smoke model's context (512) so
 # block size matches max_position_embeddings, then run a short CPU training
 # pass over the tokenized shards via the memmap dataset.
-data-tokenize-smoke:
-	.venv/bin/python -m ml.tokenize_shards \
+data-tokenize-smoke: | $(VENV)
+	$(PYTHON) -m ml.tokenize_shards \
 		--corpus $$(cat data/processed/CURRENT 2>/dev/null) \
 		--tokenizer ml/tokenizer/artifacts/best \
 		--block-size 512 \
 		--out data/tokenized
 
-train-smoke: data-tokenize-smoke
-	.venv/bin/python -m ml.trainer.cli run \
+train-smoke: data-tokenize-smoke | $(VENV)
+	$(PYTHON) -m ml.trainer.cli run \
 		--config ml/configs/smoke.yaml \
 		--device cpu \
 		--out ml/pretrain/artifacts/smoke \
 		--max-steps 200
 
-gpu-env:
+gpu-env: | $(VENV)
 	@echo "Installing training dependencies from ml/requirements.txt..."
 	@echo "CUDA-specific PyTorch wheels are selected by the host environment; no CI index is forced."
-	.venv/bin/python -m pip install -r ml/requirements.txt
+	$(PYTHON) -m pip install -r ml/requirements.txt
 
-gpu-verify:
-	.venv/bin/python -m ml.gpu_verify
+gpu-verify: | $(VENV)
+	$(PYTHON) -m ml.gpu_verify
 
-gpu-smoke:
-	.venv/bin/python -m ml.gpu_verify
+gpu-smoke: | $(VENV)
+	$(PYTHON) -m ml.gpu_verify
 
-tokenizer-build:
+tokenizer-build: | $(VENV)
 	@echo "Building tokenizer artifacts..."
-	.venv/bin/python -m ml.tokenizer.cli train \
+	$(PYTHON) -m ml.tokenizer.cli train \
 		--corpus data/processed/$$(cat data/processed/CURRENT 2>/dev/null)/train \
 		--out ml/tokenizer/artifacts
 
 # CI smoke: build a tiny dataset + tokenizer from committed fixtures so the
 # data-validate / tokenizer-check gates below have artifacts to validate.
-ci-data-build:
-	.venv/bin/python -m data.pipeline.cli run \
+ci-data-build: | $(VENV)
+	$(PYTHON) -m data.pipeline.cli run \
 		--raw-dir tests/fixtures/raw \
 		--out-root data/processed \
 		--version-label ci-smoke \
 		--min-chars 1 --max-chars 1000000 --min-words 1 \
 		--no-gzip
 
-ci-tokenizer-build:
-	.venv/bin/python -m ml.tokenizer.cli train \
+ci-tokenizer-build: | $(VENV)
+	$(PYTHON) -m ml.tokenizer.cli train \
 		--corpus data/processed/$$(cat data/processed/CURRENT 2>/dev/null)/train \
 		--algorithm bpe --vocab-size 2000 --min-frequency 1 \
 		--out ml/tokenizer/artifacts/best
@@ -120,46 +130,46 @@ tokenizer-check:
 
 # WS-7 efficiency gate: fails the build when the frozen tokenizer violates the
 # threshold set (unk < 0.5% on dev, decode fidelity 100%, tokens/char budget).
-tokenizer-bench:
-	.venv/bin/python -m ml.tokenizer.cli benchmark \
+tokenizer-bench: | $(VENV)
+	$(PYTHON) -m ml.tokenizer.cli benchmark \
 		--tokenizer ml/tokenizer/artifacts/best/tokenizer.json \
 		--out ml/tokenizer/artifacts/benchmark.json \
 		--gate
 
 # WS-9: run the Bangla benchmark suite against the mock backend and write a
 # dated JSON report + markdown report under evals/results/.
-eval-bangla:
-	.venv/bin/python -m evals.run --suite evals/suites/bangla.yaml
+eval-bangla: | $(VENV)
+	$(PYTHON) -m evals.run --suite evals/suites/bangla.yaml
 
 # Instruction tuning: validate records and run completion-only SFT.
-sft-smoke:
-	.venv/bin/python -m ml.instruction.sft \
+sft-smoke: | $(VENV)
+	$(PYTHON) -m ml.instruction.sft \
 		--train tests/fixtures/instruction.jsonl \
 		--tokenizer ml/tokenizer/artifacts/best/tokenizer.json \
 		--config ml/configs/smoke.yaml \
 		--device cpu --max-steps 1 --out ml/sft/artifacts/smoke
 
-sft-eval:
-	.venv/bin/python -m evals.sft \
+sft-eval: | $(VENV)
+	$(PYTHON) -m evals.sft \
 		--records tests/fixtures/instruction.jsonl \
 		--predictions tests/fixtures/instruction.predictions.json \
 		--out evals/results/sft
 
 # Auto review & verify the implementation plans in docs/ (structure + links).
-plans-check:
-	.venv/bin/python scripts/check_plans.py
+plans-check: | $(VENV)
+	$(PYTHON) scripts/check_plans.py
 
 # WS-1/WS-6: retrain on the normalized corpus and freeze tokenizer + vocab
 # (artifacts/best/, vocab/, DECISION.md). On real data use the target vocab
 # size; CI uses a small size so the artifact is cheap to produce.
-tokenizer-freeze:
-	.venv/bin/python -m ml.tokenizer.cli freeze \
+tokenizer-freeze: | $(VENV)
+	$(PYTHON) -m ml.tokenizer.cli freeze \
 		--corpus data/processed/$$(cat data/processed/CURRENT 2>/dev/null)/train \
 		--algorithm bpe --vocab-size 2000 --min-frequency 1 --gate \
 		--out ml/tokenizer
 
-serve-proto:
-	.venv/bin/uvicorn services.api.app:app --host 0.0.0.0 --port 8000
+serve-proto: | $(VENV)
+	$(PYTHON) -m uvicorn services.api.app:app --host 0.0.0.0 --port 8000
 
 # --- Developer SDK -----------------------------------------------------------
 
@@ -192,20 +202,20 @@ build:
 
 .PHONY: sdk-install sdk-test sdk-lint sdk-build
 
-sdk-install:
-	.venv/bin/python -m pip install -e packages/python-sdk packages/cli
+sdk-install: | $(VENV)
+	$(PYTHON) -m pip install -e packages/python-sdk packages/cli
 	cd packages/typescript-sdk && npm install
 	cd packages/go-sdk && go mod tidy
 	cd packages/rust-sdk && cargo build
 
-sdk-test:
-	.venv/bin/python -m pytest tests/test_api.py tests/test_api_sdk.py tests/test_python_sdk.py tests/test_cli.py
+sdk-test: | $(VENV)
+	$(PYTHON) -m pytest tests/test_api.py tests/test_api_sdk.py tests/test_python_sdk.py tests/test_cli.py
 	cd packages/typescript-sdk && npx vitest run
 	cd packages/go-sdk && go test ./...
 	cd packages/rust-sdk && cargo test
 
-sdk-lint:
-	.venv/bin/python -m ruff check packages/python-sdk packages/cli tests
+sdk-lint: | $(VENV)
+	$(RUFF) check packages/python-sdk packages/cli tests
 	cd packages/typescript-sdk && npm run lint
 	cd packages/go-sdk && gofmt -l kothagpt && go vet ./...
 	cd packages/rust-sdk && cargo fmt --check && cargo clippy --all-targets

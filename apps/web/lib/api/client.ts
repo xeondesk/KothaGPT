@@ -6,13 +6,29 @@ const TOKEN_KEY = "kothagpt.access_token";
 const REQUEST_TIMEOUT_MS = 30_000;
 
 function timeoutSignal(signal?: AbortSignal): AbortSignal {
-  if (typeof AbortSignal !== "undefined" && "timeout" in AbortSignal) {
+  if (
+    typeof AbortSignal !== "undefined" &&
+    typeof (AbortSignal as unknown as { timeout?: unknown }).timeout === "function" &&
+    typeof (AbortSignal as unknown as { any?: unknown }).any === "function"
+  ) {
     const timeout = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
     if (!signal) return timeout;
     return AbortSignal.any([signal, timeout]);
   }
+  if (
+    typeof AbortSignal !== "undefined" &&
+    typeof (AbortSignal as unknown as { timeout?: unknown }).timeout === "function" &&
+    !signal
+  ) {
+    return AbortSignal.timeout(REQUEST_TIMEOUT_MS);
+  }
   const controller = new AbortController();
   const timer = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  if (signal?.aborted) {
+    window.clearTimeout(timer);
+    controller.abort(signal.reason);
+    return controller.signal;
+  }
   signal?.addEventListener(
     "abort",
     () => {

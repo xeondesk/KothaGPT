@@ -2,6 +2,7 @@ import json
 
 import pytest
 from fastapi.testclient import TestClient
+from starlette.websockets import WebSocketDisconnect
 
 from services.api.app import app
 
@@ -229,7 +230,7 @@ def test_agent_run_stream_sse():
 
 
 def test_websocket_chat():
-    with client.websocket_connect("/v1/ws") as ws:
+    with client.websocket_connect("/v1/ws", headers=AUTH) as ws:
         ws.send_text(
             json.dumps(
                 {
@@ -246,7 +247,7 @@ def test_websocket_chat():
 
 
 def test_websocket_ping_and_models():
-    with client.websocket_connect("/v1/ws") as ws:
+    with client.websocket_connect("/v1/ws", headers=AUTH) as ws:
         ws.send_text(json.dumps({"id": "a", "type": "ping", "payload": {}}))
         assert json.loads(ws.receive_text())["payload"] == {"pong": True}
         ws.send_text(json.dumps({"id": "b", "type": "models.list", "payload": {}}))
@@ -255,7 +256,7 @@ def test_websocket_ping_and_models():
 
 
 def test_websocket_agents_create_and_run():
-    with client.websocket_connect("/v1/ws") as ws:
+    with client.websocket_connect("/v1/ws", headers=AUTH) as ws:
         ws.send_text(
             json.dumps({"id": "1", "type": "agents.create", "payload": {"name": "ws-agent"}})
         )
@@ -271,6 +272,27 @@ def test_websocket_agents_create_and_run():
         )
         run = json.loads(ws.receive_text())["payload"]
         assert run["status"] == "completed"
+
+
+def test_websocket_token_via_query_param():
+    with client.websocket_connect(f"/v1/ws?token={TEST_TOKEN}") as ws:
+        ws.send_text(json.dumps({"id": "q", "type": "ping", "payload": {}}))
+        assert json.loads(ws.receive_text())["payload"] == {"pong": True}
+
+
+def test_websocket_missing_token_rejected():
+    with pytest.raises(WebSocketDisconnect), client.websocket_connect("/v1/ws"):
+        pass
+
+
+def test_websocket_invalid_token_rejected():
+    with (
+        pytest.raises(WebSocketDisconnect),
+        client.websocket_connect("/v1/ws", headers={"Authorization": "Bearer wrong-token"}),
+    ):
+        pass
+    with pytest.raises(WebSocketDisconnect), client.websocket_connect("/v1/ws?token=wrong-token"):
+        pass
 
 
 def test_auth_missing_token_rejected():

@@ -6,7 +6,7 @@ import hashlib
 import math
 import operator
 import re
-from collections.abc import AsyncIterator, Iterator
+from collections.abc import AsyncIterator, Iterator, MutableMapping
 from datetime import UTC
 from typing import Any
 
@@ -29,6 +29,7 @@ from ..api.schemas import (
     ToolInvokeResponse,
     Usage,
 )
+from .agent_store import AgentStore, StoredMapping, create_store_from_env
 from .backend import Backend
 
 _EMBEDDING_DIM = 256
@@ -97,11 +98,17 @@ _TOKEN_RE = re.compile(r"[\w\u0980-\u09FF']+")
 
 
 class MockBackend(Backend):
-    """Deterministic, dependency-free backend for development and tests."""
+    """Deterministic, dependency-free backend for development and tests.
 
-    def __init__(self) -> None:
-        self._agents: dict[str, Agent] = {}
-        self._runs: dict[str, AgentRun] = {}
+    Agent and run state live in an ``AgentStore``: in memory by default, or
+    Redis/PostgreSQL when ``REDIS_URL``/``DATABASE_URL`` is configured so state
+    survives instance restarts on ephemeral hosts (e.g. Vercel functions).
+    """
+
+    def __init__(self, store: AgentStore | None = None) -> None:
+        store = store or create_store_from_env()
+        self._agents: MutableMapping[str, Agent] = StoredMapping(store, "agents", Agent)
+        self._runs: MutableMapping[str, AgentRun] = StoredMapping(store, "runs", AgentRun)
         self._tools = {t.function.name: t for t in _MOCK_TOOLS}
 
     # ---- models ---------------------------------------------------------
@@ -261,6 +268,13 @@ class MockBackend(Backend):
         for tok in _split_tokens(output):
             await asyncio.sleep(0.02)
             yield {"event": "run.delta", "delta": tok}
+        run.status = "completed"
+        run.output = output
+        run.messages.append(Message(role="assistant", content=output))
+        import time as _time_mod
+
+        run.updated_at = int(_time_mod.time())
+        self._runs[run.id] = run
         yield {"event": "run.completed", "output": output}
 
 

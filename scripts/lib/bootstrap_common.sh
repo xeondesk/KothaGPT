@@ -58,6 +58,7 @@ python_venv_steps() {
   fi
   emit ". \"$REPO_ROOT/.venv/$activate_rel\" && python -m pip install --upgrade pip"
   emit ". \"$REPO_ROOT/.venv/$activate_rel\" && python -m pip install -r \"$REPO_ROOT/services/api/requirements.txt\""
+  emit ". \"$REPO_ROOT/.venv/$activate_rel\" && python -m pip install ruff"
 }
 
 node_steps() {

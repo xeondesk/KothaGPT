@@ -16,7 +16,15 @@ class Chunk:
     end: int = 0
 
 
-def chunk_text(text: str, *, document_id: str, source: str, max_chars: int = 800, overlap: int = 120, section: str | None = None) -> list[Chunk]:
+def chunk_text(
+    text: str,
+    *,
+    document_id: str,
+    source: str,
+    max_chars: int = 800,
+    overlap: int = 120,
+    section: str | None = None,
+) -> list[Chunk]:
     if max_chars <= 0 or overlap < 0 or overlap >= max_chars:
         raise ValueError("overlap must be non-negative and smaller than max_chars")
     normalized = re.sub(r"\s+", " ", text).strip()
@@ -31,12 +39,34 @@ def chunk_text(text: str, *, document_id: str, source: str, max_chars: int = 800
         if current and len(candidate) > max_chars:
             start = cursor
             end = start + len(current)
-            chunks.append(Chunk(f"{document_id}:{len(chunks)}", document_id, current, len(chunks), source, section, start, end))
+            chunks.append(
+                Chunk(
+                    f"{document_id}:{len(chunks)}",
+                    document_id,
+                    current,
+                    len(chunks),
+                    source,
+                    section,
+                    start,
+                    end,
+                )
+            )
             tail = current[-overlap:] if overlap else ""
             cursor = max(0, end - len(tail))
             current = f"{tail} {sentence}".strip()
         else:
             current = candidate
     if current:
-        chunks.append(Chunk(f"{document_id}:{len(chunks)}", document_id, current, len(chunks), source, section, cursor, cursor + len(current)))
+        chunks.append(
+            Chunk(
+                f"{document_id}:{len(chunks)}",
+                document_id,
+                current,
+                len(chunks),
+                source,
+                section,
+                cursor,
+                cursor + len(current),
+            )
+        )
     return chunks

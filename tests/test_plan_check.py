@@ -61,9 +61,7 @@ def test_broken_docs_links_detected(tmp_path):
     plan.write_text("# A Plan\n\nGoal: test.\n\nSee docs/nope.md\n", encoding="utf-8")
     (tmp_path / "TODO").write_text("TODO\n", encoding="utf-8")
     roadmap = docs / "roadmap.md"
-    roadmap.write_text(
-        "# Roadmap\n\n- [ ] A (`docs/a-plan.md`)\n", encoding="utf-8"
-    )
+    roadmap.write_text("# Roadmap\n\n- [ ] A (`docs/a-plan.md`)\n", encoding="utf-8")
     problems = verify_links([review_plan(plan)], tmp_path)
     assert any("missing docs/nope.md" in p for p in problems)
 

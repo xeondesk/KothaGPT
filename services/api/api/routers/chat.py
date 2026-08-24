@@ -17,7 +17,9 @@ router = APIRouter(prefix="/v1", tags=["chat"])
 
 
 @router.post("/chat/completions", response_model=ChatCompletionResponse)
-async def chat_completions(request: ChatCompletionRequest) -> StreamingResponse | ChatCompletionResponse:
+async def chat_completions(
+    request: ChatCompletionRequest,
+) -> StreamingResponse | ChatCompletionResponse:
     backend = backend_factory.create()
     if request.stream:
         return StreamingResponse(

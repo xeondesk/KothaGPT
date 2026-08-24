@@ -85,9 +85,7 @@ def test_redact_pii_leaves_clean_text_untouched():
 def test_full_pipeline_pii_mask_mode_keeps_doc(tmp_path):
     raw = tmp_path / "raw"
     raw.mkdir()
-    (raw / "pii.txt").write_text(
-        "যোগাযোগ করুন user@example.com ঠিকানায়। " * 20, encoding="utf-8"
-    )
+    (raw / "pii.txt").write_text("যোগাযোগ করুন user@example.com ঠিকানায়। " * 20, encoding="utf-8")
     (raw / "clean.txt").write_text("বাংলা ভাষা একটি সমৃদ্ধ ভাষা। " * 20, encoding="utf-8")
     cfg = PipelineConfig(
         raw_dir=str(raw),
@@ -163,6 +161,26 @@ def test_split_is_deterministic_and_balanced():
     assert sets == again
     val = sum(1 for s in sets if s == "validation")
     assert 0.05 < val / len(sets) < 0.2
+
+
+def test_ensure_nonempty_validation_promotes_closest_record():
+    records = [split.split_record({"text": f"doc {i}"}) for i in range(12)]
+    if any(r["split"] == "validation" for r in records):
+        records = [dict(r, split="train") for r in records]
+    fixed = split.ensure_nonempty_validation(records)
+    assert sum(1 for r in fixed if r["split"] == "validation") == 1
+    # Deterministic: same input, same promotion.
+    assert [r["split"] for r in split.ensure_nonempty_validation(records)] == [
+        r["split"] for r in fixed
+    ]
+    # The promoted record is the one closest to the validation threshold.
+    idx = min(range(len(records)), key=lambda i: split.split_key(records[i]["text"]))
+    assert fixed[idx]["split"] == "validation"
+    # Already-nonempty and tiny inputs pass through unchanged.
+    mixed = [{"text": "a", "split": "train"}, {"text": "b", "split": "validation"}]
+    assert split.ensure_nonempty_validation(mixed) == mixed
+    single = [{"text": "only", "split": "train"}]
+    assert split.ensure_nonempty_validation(single) == single
 
 
 def test_write_shards_gzip(tmp_path):

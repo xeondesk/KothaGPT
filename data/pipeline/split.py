@@ -34,3 +34,19 @@ def split_record(record: dict, *, text_key: str = "text", validation_ratio: floa
     copy = dict(record)
     copy["split"] = split_set(record[text_key], validation_ratio)
     return copy
+
+
+def ensure_nonempty_validation(records: list[dict], *, text_key: str = "text") -> list[dict]:
+    """Guarantee at least one validation record for corpora large enough to split.
+
+    Content hashing is per-record, so small corpora can round to an empty
+    validation split (e.g. 12 docs at ratio 0.02), which breaks downstream
+    tokenization/training. Promotes the record whose bucket is closest to the
+    validation threshold, keeping the split deterministic and stable.
+    """
+    if len(records) < 2 or any(r["split"] == "validation" for r in records):
+        return records
+    idx = min(range(len(records)), key=lambda i: split_key(records[i][text_key]))
+    promoted = dict(records[idx])
+    promoted["split"] = "validation"
+    return records[:idx] + [promoted] + records[idx + 1 :]

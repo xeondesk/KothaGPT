@@ -75,7 +75,10 @@ def test_train_writes_history_and_checkpoint(config, tokenizer, tmp_path: Path) 
         device="cpu",
     )
     assert result["step"] == 4
-    lines = [json.loads(l) for l in (out / "history.jsonl").read_text(encoding="utf-8").strip().splitlines()]
+    lines = [
+        json.loads(l)
+        for l in (out / "history.jsonl").read_text(encoding="utf-8").strip().splitlines()
+    ]
     assert any("loss" in line for line in lines)
     assert any("lr" in line for line in lines)
     assert (out / "lr_curve.csv").exists()
@@ -204,7 +207,13 @@ def test_train_tiny_hidden_size(config, tokenizer, tmp_path: Path) -> None:
     corpus = make_corpus(tmp_path, docs=4)
     train_dataset = CausalLMDataset(build_blocks(corpus, tokenizer, block_size=8))
     tiny = BaseModelConfig(
-        model=ModelConfig(vocab_size=len(tokenizer.vocab), hidden_size=16, num_layers=1, num_heads=2, max_position_embeddings=8),
+        model=ModelConfig(
+            vocab_size=len(tokenizer.vocab),
+            hidden_size=16,
+            num_layers=1,
+            num_heads=2,
+            max_position_embeddings=8,
+        ),
         training=TrainingConfig(batch_size=2, max_steps=2, mixed_precision="none"),
         data=config.data,
     )

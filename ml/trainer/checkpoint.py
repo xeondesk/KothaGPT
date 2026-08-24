@@ -136,14 +136,17 @@ def save_checkpoint(
     checkpoints = out_dir / "checkpoints"
     checkpoints.mkdir(parents=True, exist_ok=True)
 
-    config_text = json.dumps(
-        {
-            "model": config.model.to_dict(),
-            "training": config.training.to_dict(),
-            "data": config.data.to_dict(),
-        },
-        indent=2,
-    ) + "\n"
+    config_text = (
+        json.dumps(
+            {
+                "model": config.model.to_dict(),
+                "training": config.training.to_dict(),
+                "data": config.data.to_dict(),
+            },
+            indent=2,
+        )
+        + "\n"
+    )
     _atomic_write_text(config_text, out_dir / "config.json")
     _atomic_write_text(json.dumps(metadata, indent=2) + "\n", out_dir / "metadata.json")
 

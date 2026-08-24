@@ -41,9 +41,7 @@ def test_canned_backend(monkeypatch):
     monkeypatch.setenv("KOTHAGPT_BACKEND", "canned")
     backend = backend_factory.create()
     assert isinstance(backend, CannedBackend)
-    output = backend.chat(
-        _chat_request("আমি কোন মডেল ব্যবহার করছি?")
-    ).choices[0].message.content
+    output = backend.chat(_chat_request("আমি কোন মডেল ব্যবহার করছি?")).choices[0].message.content
     assert "ক্যানড" in output
     assert "আমি কোন মডেল" in output
 

@@ -179,9 +179,7 @@ def run_pipeline(cfg: PipelineConfig) -> dict:
 
     # 6. Toxic-content filter.
     safe = []
-    toxic_classifier = (
-        toxic.load_classifier(cfg.toxic_classifier) if cfg.toxic_classifier else None
-    )
+    toxic_classifier = toxic.load_classifier(cfg.toxic_classifier) if cfg.toxic_classifier else None
     for record in clean:
         if cfg.check_toxic:
             keep, _toxic_reasons = toxic.toxic_gate(
@@ -200,9 +198,7 @@ def run_pipeline(cfg: PipelineConfig) -> dict:
             cfg.dedup_state_path
         )
     elif cfg.dedup_bloom:
-        exact_store = dedup.BloomFilter(
-            cfg.dedup_bloom_capacity, fp_rate=cfg.dedup_bloom_fp_rate
-        )
+        exact_store = dedup.BloomFilter(cfg.dedup_bloom_capacity, fp_rate=cfg.dedup_bloom_fp_rate)
     else:
         exact_store = set()
     deduped, dedup_counts = dedup.deduplicate_with_stats(
@@ -220,6 +216,7 @@ def run_pipeline(cfg: PipelineConfig) -> dict:
 
     # 8. Deterministic train/validation split.
     split_records = [split.split_record(r, validation_ratio=cfg.validation_ratio) for r in deduped]
+    split_records = split.ensure_nonempty_validation(split_records)
     summary["train"] = sum(1 for r in split_records if r["split"] == "train")
     summary["validation"] = sum(1 for r in split_records if r["split"] == "validation")
 

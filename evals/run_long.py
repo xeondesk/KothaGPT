@@ -90,7 +90,7 @@ def needle_recall(
     prompt = record["haystack"] + " প্রশ্ন: " + record["question"] + "\nউত্তর: "
     prompt_ids = torch.tensor([tokenizer.encode(prompt)], dtype=torch.long, device=device)
     out = model.generate(prompt_ids, max_new_tokens=24, temperature=1e-6)
-    prediction = tokenizer.decode(out[0, prompt_ids.shape[1]:].tolist())
+    prediction = tokenizer.decode(out[0, prompt_ids.shape[1] :].tolist())
     return prediction, record["answer"] in prediction
 
 
@@ -134,7 +134,9 @@ def run(
     needle_summary = {
         "instances": len(needle_records),
         "recall": sum(v for hits in per_depth.values() for v in hits) / max(len(needle_records), 1),
-        "by_depth": {f"{int(d * 100)}": sum(hits) / len(hits) for d, hits in sorted(per_depth.items())},
+        "by_depth": {
+            f"{int(d * 100)}": sum(hits) / len(hits) for d, hits in sorted(per_depth.items())
+        },
         "by_context": {str(k): sum(hits) / len(hits) for k, hits in sorted(per_context.items())},
     }
 
@@ -149,7 +151,10 @@ def run(
             cut = int(len(filler) * frac)
             prefix = filler[:cut]
             ppl = reference_ppl(model, tokenizer, prefix, ref, device)
-            within = frac * record["context_len"] + len(tokenizer.encode(ref)) <= cfg.model.max_position_embeddings
+            within = (
+                frac * record["context_len"] + len(tokenizer.encode(ref))
+                <= cfg.model.max_position_embeddings
+            )
             ppl_rows.append(
                 {
                     "record_id": record["record_id"],
@@ -173,7 +178,12 @@ def run(
         "checkpoint": str(checkpoint) if checkpoint else None,
         "extend": extend_info,
         "needle": needle_summary,
-        "long_ppl": {"rows": ppl_rows, "baseline_ppl": _mean_ppl(within_rows), "beyond_ppl": _mean_ppl(beyond_rows), "degradation_pct": degradation_pct},
+        "long_ppl": {
+            "rows": ppl_rows,
+            "baseline_ppl": _mean_ppl(within_rows),
+            "beyond_ppl": _mean_ppl(beyond_rows),
+            "degradation_pct": degradation_pct,
+        },
         "date": _dt.datetime.now(_dt.UTC).date().isoformat(),
     }
     return results
@@ -204,14 +214,22 @@ def _render_report(results: dict[str, Any]) -> str:
     ]
     for k, v in results["needle"]["by_context"].items():
         lines.append(f"| {k} | {v:.4f} |")
-    lines += ["", "## Reference ppl vs context growth", "", "| record_id | prefix_tokens | ppl | within native ctx |", "| --- | --- | --- | --- |"]
+    lines += [
+        "",
+        "## Reference ppl vs context growth",
+        "",
+        "| record_id | prefix_tokens | ppl | within native ctx |",
+        "| --- | --- | --- | --- |",
+    ]
     for row in results["long_ppl"]["rows"]:
         lines.append(
             f"| {row['record_id']} | {row['prefix_tokens']} | {row['ppl']:.4f} | {row['within_native_ctx']} |"
         )
     p = results["long_ppl"]["degradation_pct"]
     lines.append(
-        f"\n**ppl degradation on extension**: {p:.2f}%" if p is not None else "\n**ppl degradation on extension**: n/a"
+        f"\n**ppl degradation on extension**: {p:.2f}%"
+        if p is not None
+        else "\n**ppl degradation on extension**: n/a"
     )
     return "\n".join(lines)
 
@@ -228,7 +246,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--data-dir", default=str(_DATA_DIR))
     parser.add_argument("--out-dir", default=str(_RESULTS_DIR))
     parser.add_argument("--name", default="long")
-    parser.add_argument("--limit", type=int, default=None, help="max instances per task (smoke runs)")
+    parser.add_argument(
+        "--limit", type=int, default=None, help="max instances per task (smoke runs)"
+    )
     args = parser.parse_args(argv)
 
     results = run(

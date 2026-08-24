@@ -60,7 +60,11 @@ def test_model_config_validation_errors(kwargs, error: str) -> None:
     ],
 )
 def test_training_config_validation_errors(value, error: str) -> None:
-    cfg = TrainingConfig(mixed_precision=value) if error == "mixed_precision" else TrainingConfig(batch_size=value)
+    cfg = (
+        TrainingConfig(mixed_precision=value)
+        if error == "mixed_precision"
+        else TrainingConfig(batch_size=value)
+    )
     with pytest.raises(ValueError, match=error):
         cfg.validate()
 

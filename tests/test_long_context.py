@@ -107,12 +107,18 @@ def test_linear_scaling_compresses_positions() -> None:
 
 def test_extend_context_length_preserves_weights() -> None:
     cfg = ModelConfig(
-        vocab_size=128, hidden_size=32, num_layers=2, num_heads=4,
-        intermediate_size=64, max_position_embeddings=16,
+        vocab_size=128,
+        hidden_size=32,
+        num_layers=2,
+        num_heads=4,
+        intermediate_size=64,
+        max_position_embeddings=16,
     )
     model = KothaGPT(cfg)
     before = {n: p.clone() for n, p in model.named_parameters()}
-    model.extend_context_length(64, rope_theta=500000.0, rope_scaling="ntk", rope_scaling_factor=4.0)
+    model.extend_context_length(
+        64, rope_theta=500000.0, rope_scaling="ntk", rope_scaling_factor=4.0
+    )
     for n, p in model.named_parameters():
         assert torch.equal(before[n], p), n
     assert model.config.max_position_embeddings == 64
@@ -125,7 +131,9 @@ def test_extend_context_length_preserves_weights() -> None:
 
 def test_extend_rejects_shrink() -> None:
     model = KothaGPT(
-        ModelConfig(vocab_size=128, hidden_size=32, num_layers=2, num_heads=4, max_position_embeddings=16)
+        ModelConfig(
+            vocab_size=128, hidden_size=32, num_layers=2, num_heads=4, max_position_embeddings=16
+        )
     )
     with pytest.raises(ValueError):
         model.extend_context_length(16)
@@ -141,7 +149,9 @@ def test_extension_keeps_ppl_stable_within_5pct(long_ctx) -> None:
     baseline_ppl = _ppl(model, tokenizer, baseline_prefix, _REFERENCE)
     assert baseline_ppl < 50, baseline_ppl
 
-    model.extend_context_length(64, rope_theta=10000.0, rope_scaling="linear", rope_scaling_factor=2.0)
+    model.extend_context_length(
+        64, rope_theta=10000.0, rope_scaling="linear", rope_scaling_factor=2.0
+    )
     long_prefix = _filler_tokens(tokenizer, 48)
     assert len(tokenizer.encode(long_prefix)) == 48
     assert len(tokenizer.encode(long_prefix)) + len(tokenizer.encode(_REFERENCE)) <= 64
@@ -163,7 +173,12 @@ def test_long_benchmark_files_exist() -> None:
     for name in ("needle.jsonl", "long_ppl.jsonl", "MANIFEST.json"):
         path = Path("data/benchmarks/bangla/long") / name
         assert path.exists(), name
-    records = [json.loads(l) for l in (Path("data/benchmarks/bangla/long/needle.jsonl")).read_text(encoding="utf-8").splitlines()]
+    records = [
+        json.loads(l)
+        for l in (Path("data/benchmarks/bangla/long/needle.jsonl"))
+        .read_text(encoding="utf-8")
+        .splitlines()
+    ]
     assert len(records) >= 50
     assert all(r["task"] == "needle" for r in records)
     assert max(r["context_len"] for r in records) == 8192

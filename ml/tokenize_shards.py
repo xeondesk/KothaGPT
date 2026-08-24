@@ -22,6 +22,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import shutil
 import sys
 from array import array
 from pathlib import Path
@@ -167,23 +168,56 @@ def tokenize_corpus(
     if out_dir.exists() and not force:
         raise FileExistsError(f"{out_dir} already exists (re-run with --force to overwrite)")
 
-    train = _tokenize_split(train_dir, tokenizer, block_size, out_dir / "train")
-    validation = _tokenize_split(val_dir, tokenizer, block_size, out_dir / "validation")
+    staging_dir = out_dir.with_name(out_dir.name + ".staging")
+    if staging_dir.exists():
+        shutil.rmtree(staging_dir)
 
-    top = {
-        "format": "uint32 blocks",
-        "block_size": block_size,
-        "corpus_version": corpus_version,
-        "corpus_dir": str(corpus_root),
-        "tokenizer_digest": tokenizer_digest,
-        "tokenizer_path": str(tok_dir),
-        "splits": {"train": train, "validation": validation},
-        "total_blocks": train["n_blocks"] + validation["n_blocks"],
-        "total_tokens": train["n_tokens"] + validation["n_tokens"],
-    }
-    (out_dir / "MANIFEST.json").write_text(
-        json.dumps(top, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
-    )
+    try:
+        train = _tokenize_split(train_dir, tokenizer, block_size, staging_dir / "train")
+        validation = _tokenize_split(val_dir, tokenizer, block_size, staging_dir / "validation")
+
+        for name, result in (("train", train), ("validation", validation)):
+            if result["n_blocks"] == 0:
+                validation_error = ValueError(
+                    f"{name} split produced 0 complete blocks at block_size={block_size} "
+                    f"({result['n_tokens']} tokens available); use a larger corpus or a "
+                    f"smaller --block-size"
+                )
+                try:
+                    shutil.rmtree(staging_dir)
+                except Exception as cleanup_err:  # noqa: BLE001
+                    raise RuntimeError(
+                        f"failed to cleanup staging {staging_dir}: {cleanup_err}"
+                    ) from validation_error
+                if staging_dir.exists():
+                    raise RuntimeError(f"staging {staging_dir} still exists after cleanup")
+                raise validation_error
+
+        top = {
+            "format": "uint32 blocks",
+            "block_size": block_size,
+            "corpus_version": corpus_version,
+            "corpus_dir": str(corpus_root),
+            "tokenizer_digest": tokenizer_digest,
+            "tokenizer_path": str(tok_dir),
+            "splits": {"train": train, "validation": validation},
+            "total_blocks": train["n_blocks"] + validation["n_blocks"],
+            "total_tokens": train["n_tokens"] + validation["n_tokens"],
+        }
+        (staging_dir / "MANIFEST.json").write_text(
+            json.dumps(top, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+        )
+    except Exception:
+        if staging_dir.exists():
+            try:
+                shutil.rmtree(staging_dir)
+            except Exception:  # noqa: BLE001, S110
+                pass
+        raise
+
+    if out_dir.exists():
+        shutil.rmtree(out_dir)
+    staging_dir.rename(out_dir)
     (Path(out_root) / "CURRENT").write_text(out_dir.name + "\n", encoding="utf-8")
     return top
 

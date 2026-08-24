@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import json
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 
 from ...core import backend_factory
+from ..auth import require_api_token_websocket
 from ..schemas import (
     AgentSpec,
     ChatCompletionRequest,
@@ -14,12 +15,19 @@ from ..schemas import (
     WsEnvelope,
 )
 
-router = APIRouter(tags=["websocket"])
+router = APIRouter(
+    tags=["websocket"],
+    dependencies=[Depends(require_api_token_websocket)],
+)
 
 _HANDLERS = {
     "ping": lambda p: {"pong": True},
-    "tools.list": lambda p: {"data": [t.model_dump() for t in backend_factory.create().list_tools()]},
-    "models.list": lambda p: {"data": [m.model_dump() for m in backend_factory.create().list_models()]},
+    "tools.list": lambda p: {
+        "data": [t.model_dump() for t in backend_factory.create().list_tools()]
+    },
+    "models.list": lambda p: {
+        "data": [m.model_dump() for m in backend_factory.create().list_models()]
+    },
 }
 
 
@@ -32,7 +40,9 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
             try:
                 envelope = WsEnvelope.model_validate(json.loads(raw))
             except Exception:  # noqa: BLE001
-                await _send(websocket, envelope_id=None, response={"error": "invalid message"}, kind="error")
+                await _send(
+                    websocket, envelope_id=None, response={"error": "invalid message"}, kind="error"
+                )
                 continue
 
             response = await _dispatch(envelope)
@@ -60,7 +70,9 @@ async def _dispatch(envelope: WsEnvelope) -> dict:
         return backend.embed(request.model, inputs).model_dump()
     if kind == "rerank":
         request = RerankRequest.model_validate(payload)
-        return backend.rerank(request.model, request.query, request.documents, request.top_n).model_dump()
+        return backend.rerank(
+            request.model, request.query, request.documents, request.top_n
+        ).model_dump()
     if kind == "tools.invoke":
         request = ToolInvokeRequest.model_validate(payload)
         return backend.invoke_tool(request.name, request.arguments).model_dump()

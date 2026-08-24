@@ -14,7 +14,12 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install dependencies
-        run: pip install -r services/api/requirements.txt
+        run: |
+          python -m venv .venv
+          .venv/bin/pip install --upgrade pip
+          .venv/bin/pip install -r services/api/requirements.txt
+          .venv/bin/pip install ruff fakeredis
+          pip install -r services/api/requirements.txt ruff fakeredis
       - name: Build CI dataset from fixtures
         run: make ci-data-build
       - name: make data-validate
@@ -36,10 +41,39 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Install dependencies
+        run: |
+          python -m venv .venv
+          .venv/bin/pip install --upgrade pip
+          .venv/bin/pip install -r services/api/requirements.txt
+          .venv/bin/pip install ruff fakeredis
+          pip install -r services/api/requirements.txt ruff fakeredis
       - name: Review + verify all implementation plans
         run: make plans-check
       - name: Plan checker unit tests
         run: python -m pytest tests/test_plan_check.py
+
+  bootstrap:
+    name: Bootstrap script verification
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Syntax check bootstrap scripts
+        run: |
+          bash -n scripts/bootstrap.sh scripts/lib/bootstrap_common.sh \
+            scripts/linux/bootstrap.sh scripts/macos/bootstrap.sh scripts/windows/bootstrap.sh
+      - name: Preview every platform (dry-run)
+        run: |
+          ./scripts/bootstrap.sh --dry-run --platform linux
+          ./scripts/bootstrap.sh --dry-run --platform macos
+          ./scripts/bootstrap.sh --dry-run --platform windows
+      - name: Bootstrap gate tests
+        run: |
+          pip install pytest
+          python -m pytest tests/test_bootstrap.py
 
   test:
     name: Unit tests
@@ -50,9 +84,14 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install dependencies
-        run: pip install -r services/api/requirements.txt -e packages/python-sdk packages/cli
-      - name: Install CPU torch (trainer tests)
-        run: pip install torch --index-url https://download.pytorch.org/whl/cpu
+        run: |
+          python -m venv .venv
+          .venv/bin/pip install --upgrade pip
+          .venv/bin/pip install -r services/api/requirements.txt -e packages/python-sdk -e packages/cli
+          .venv/bin/pip install ruff fakeredis
+          .venv/bin/pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -r services/api/requirements.txt -e packages/python-sdk -e packages/cli ruff fakeredis
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
       - name: Run tests
         run: make test
       - name: Tokenize shards (WS-1/2)

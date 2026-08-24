@@ -15,7 +15,14 @@ class AgentEvent:
     payload: dict[str, Any] = field(default_factory=dict)
 
 
-def run_agent(message: str, *, decide: Callable[[str, list[AgentEvent]], str | None], registry: ToolRegistry, permissions: PermissionGate, max_steps: int = 8) -> tuple[str, list[AgentEvent]]:
+def run_agent(
+    message: str,
+    *,
+    decide: Callable[[str, list[AgentEvent]], str | None],
+    registry: ToolRegistry,
+    permissions: PermissionGate,
+    max_steps: int = 8,
+) -> tuple[str, list[AgentEvent]]:
     if max_steps < 1:
         raise ValueError("max_steps must be positive")
     events = [AgentEvent("user", {"message": message})]
@@ -30,7 +37,9 @@ def run_agent(message: str, *, decide: Callable[[str, list[AgentEvent]], str | N
             spec = next((item for item in registry.list() if item.name == call.name), None)
             if spec is None:
                 raise KeyError(call.name)
-            permissions.check(call.name, risk="high" if spec.permission in {"write", "execute"} else "low")
+            permissions.check(
+                call.name, risk="high" if spec.permission in {"write", "execute"} else "low"
+            )
             result = registry.invoke(call.name, call.arguments, allowed=permissions.allowed_tools)
             events.append(AgentEvent("tool_result", {"name": call.name, "result": result}))
             prompt = str(result)

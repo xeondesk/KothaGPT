@@ -192,10 +192,25 @@ def check_benchmark(
     t = dict(GATE_THRESHOLDS if thresholds is None else thresholds)
     failures: list[str] = []
     checks = (
-        ("avg_tokens_per_char", "max_avg_tokens_per_char", result.get("avg_tokens_per_char", 0.0), ">"),
+        (
+            "avg_tokens_per_char",
+            "max_avg_tokens_per_char",
+            result.get("avg_tokens_per_char", 0.0),
+            ">",
+        ),
         ("dev_max_unk_rate", "max_dev_unk_rate", result.get("dev_max_unk_rate", 1.0), ">"),
-        ("dev_min_decode_fidelity", "min_dev_decode_fidelity", result.get("dev_min_decode_fidelity", 0.0), "<"),
-        ("dev_min_compression_vs_char", "min_dev_compression_vs_char", result.get("dev_min_compression_vs_char", 0.0), "<"),
+        (
+            "dev_min_decode_fidelity",
+            "min_dev_decode_fidelity",
+            result.get("dev_min_decode_fidelity", 0.0),
+            "<",
+        ),
+        (
+            "dev_min_compression_vs_char",
+            "min_dev_compression_vs_char",
+            result.get("dev_min_compression_vs_char", 0.0),
+            "<",
+        ),
     )
     for metric, key, value, op in checks:
         if key not in t:

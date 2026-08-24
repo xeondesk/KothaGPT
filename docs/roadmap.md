@@ -11,7 +11,7 @@ Master checklist (auto-verified coverage): `docs/checklist.md`
 - [ ] Model size নির্ধারণ — 1B / 3B / 7B / 14B+
 - [ ] License ও open-source strategy নির্ধারণ
 - [ ] Project name ও repository তৈরি
-- [ ] Repository bootstrap
+- [ ] Repository bootstrap (`docs/bootstrap-migration-plan.md`)
 - [ ] CI
 - [ ] coding standards
 - [ ] configuration system

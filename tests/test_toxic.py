@@ -93,9 +93,7 @@ def test_full_pipeline_drops_toxic(tmp_path):
         "এই ভাষায় সাহিত্য, কবিতা ও গানের একটি দীর্ঘ ঐতিহ্য রয়েছে।",
         encoding="utf-8",
     )
-    (raw / "toxic.txt").write_text(
-        "আজকের আলোচনা হলো একটা বেশ্যা লোকের গল্প।", encoding="utf-8"
-    )
+    (raw / "toxic.txt").write_text("আজকের আলোচনা হলো একটা বেশ্যা লোকের গল্প।", encoding="utf-8")
     cfg = PipelineConfig(
         raw_dir=str(raw),
         out_root=str(tmp_path / "out"),
@@ -115,9 +113,7 @@ def test_full_pipeline_no_toxic_check_keeps_all(tmp_path):
     raw = tmp_path / "raw"
     raw.mkdir()
     (raw / "ok.txt").write_text("বাংলা ভাষা একটি সমৃদ্ধ ভাষা। " * 5, encoding="utf-8")
-    (raw / "toxic.txt").write_text(
-        "আজকের আলোচনা হলো একটা বেশ্যা লোকের গল্প।", encoding="utf-8"
-    )
+    (raw / "toxic.txt").write_text("আজকের আলোচনা হলো একটা বেশ্যা লোকের গল্প।", encoding="utf-8")
     cfg = PipelineConfig(
         raw_dir=str(raw),
         out_root=str(tmp_path / "out"),

@@ -39,9 +39,9 @@ class HFExampleBackend(MockBackend):
         super().__init__()
         self._inference = HFExampleInference(
             model_name=model_name or os.getenv(ENV_MODEL),
-            max_new_tokens=max_new_tokens if max_new_tokens is not None else int(
-                os.getenv(ENV_MAX_NEW_TOKENS, "32")
-            ),
+            max_new_tokens=max_new_tokens
+            if max_new_tokens is not None
+            else int(os.getenv(ENV_MAX_NEW_TOKENS, "32")),
         )
 
     def _build_response(self, request: ChatCompletionRequest) -> str:

@@ -44,7 +44,9 @@ def test_bloom_filter_validation():
 
 def test_bloom_filter_as_exact_store():
     docs = [{"text": "same"}, {"text": "same"}, {"text": "other"}]
-    out, counts = dedup.deduplicate_with_stats(docs, exact=True, exact_store=dedup.BloomFilter(100, 0.001))
+    out, counts = dedup.deduplicate_with_stats(
+        docs, exact=True, exact_store=dedup.BloomFilter(100, 0.001)
+    )
     assert len(out) == 2
     assert counts["removed_exact"] == 1
 
@@ -111,7 +113,9 @@ def test_near_sharded_matches_in_memory_behavior():
 
 def test_sharded_validation():
     try:
-        dedup.near_duplicate_groups_sharded([{"text": "x"}], num_hashes=10, num_bands=3, rows_per_band=4)
+        dedup.near_duplicate_groups_sharded(
+            [{"text": "x"}], num_hashes=10, num_bands=3, rows_per_band=4
+        )
     except ValueError:
         pass
     else:

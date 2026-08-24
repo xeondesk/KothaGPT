@@ -1,4 +1,5 @@
 """Evaluate instruction records with loss and normalized completion matching."""
+
 from __future__ import annotations
 
 import argparse
@@ -31,10 +32,19 @@ def evaluate_predictions(records, predictions):
 def write_report(metrics: dict, out: str | Path) -> None:
     out = Path(out)
     out.parent.mkdir(parents=True, exist_ok=True)
-    (out.with_suffix(".json")).write_text(json.dumps(metrics, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    lines = ["# SFT evaluation", "", "| Group | Count | Exact | Normalized |", "|---|---:|---:|---:|"]
+    (out.with_suffix(".json")).write_text(
+        json.dumps(metrics, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+    lines = [
+        "# SFT evaluation",
+        "",
+        "| Group | Count | Exact | Normalized |",
+        "|---|---:|---:|---:|",
+    ]
     for group, row in sorted(metrics.get("groups", metrics).items()):
-        lines.append(f"| {group} | {row['count']} | {row.get('exact_match', 0):.3f} | {row.get('normalized_match', 0):.3f} |")
+        lines.append(
+            f"| {group} | {row['count']} | {row.get('exact_match', 0):.3f} | {row.get('normalized_match', 0):.3f} |"
+        )
     (out.with_suffix(".md")).write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
@@ -45,6 +55,7 @@ def main() -> None:
     parser.add_argument("--out", required=True)
     args = parser.parse_args()
     from ml.instruction.dataset import load_jsonl
+
     records = load_jsonl(args.records)
     predictions = json.loads(Path(args.predictions).read_text(encoding="utf-8"))
     write_report({"groups": evaluate_predictions(records, predictions)}, args.out)

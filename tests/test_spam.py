@@ -60,9 +60,7 @@ def test_full_pipeline_drops_spam(tmp_path):
         "প্রতিদিন লক্ষ লক্ষ মানুষ বাংলায় কথা বলে এবং লেখে।" * 3,
         encoding="utf-8",
     )
-    (raw / "spam.txt").write_text(
-        "পুরস্কার জিতুন! ফ্রি রিচার্জ! এখানে ক্লিক করুন! " * 10, encoding="utf-8"
-    )
+    (raw / "spam.txt").write_text("পুরস্কার জিতুন! ফ্রি রিচার্জ! এখানে ক্লিক করুন! " * 10, encoding="utf-8")
     cfg = PipelineConfig(
         raw_dir=str(raw),
         out_root=str(tmp_path / "out"),
@@ -82,9 +80,7 @@ def test_full_pipeline_no_spam_check_keeps_all(tmp_path):
     raw = tmp_path / "raw"
     raw.mkdir()
     (raw / "ok.txt").write_text("বাংলা ভাষা একটি সমৃদ্ধ ভাষা। " * 20, encoding="utf-8")
-    (raw / "spam.txt").write_text(
-        "পুরস্কার জিতুন! ফ্রি রিচার্জ! এখানে ক্লিক করুন! " * 10, encoding="utf-8"
-    )
+    (raw / "spam.txt").write_text("পুরস্কার জিতুন! ফ্রি রিচার্জ! এখানে ক্লিক করুন! " * 10, encoding="utf-8")
     cfg = PipelineConfig(
         raw_dir=str(raw),
         out_root=str(tmp_path / "out"),

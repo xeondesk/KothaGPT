@@ -90,7 +90,9 @@ def test_write_schedule_curve_files(tmp_path: Path) -> None:
     svg = write_schedule_curve(_training(), tmp_path)
     assert svg.exists()
     assert (tmp_path / "lr_curve.csv").exists()
-    rows = list(csv.DictReader((tmp_path / "lr_curve.csv").read_text(encoding="utf-8").splitlines()))
+    rows = list(
+        csv.DictReader((tmp_path / "lr_curve.csv").read_text(encoding="utf-8").splitlines())
+    )
     assert rows[0]["step"] == "0"
     text = svg.read_text(encoding="utf-8")
     assert "<svg" in text and "<polyline" in text

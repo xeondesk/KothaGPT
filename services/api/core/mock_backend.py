@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import ast
 import asyncio
 import hashlib
 import math
+import operator
 import re
-from collections.abc import AsyncIterator, Iterator
+from collections.abc import AsyncIterator, Iterator, MutableMapping
 from datetime import UTC
 from typing import Any
 
@@ -27,6 +29,7 @@ from ..api.schemas import (
     ToolInvokeResponse,
     Usage,
 )
+from .agent_store import AgentStore, StoredMapping, create_store_from_env
 from .backend import Backend
 
 _EMBEDDING_DIM = 256
@@ -95,11 +98,17 @@ _TOKEN_RE = re.compile(r"[\w\u0980-\u09FF']+")
 
 
 class MockBackend(Backend):
-    """Deterministic, dependency-free backend for development and tests."""
+    """Deterministic, dependency-free backend for development and tests.
 
-    def __init__(self) -> None:
-        self._agents: dict[str, Agent] = {}
-        self._runs: dict[str, AgentRun] = {}
+    Agent and run state live in an ``AgentStore``: in memory by default, or
+    Redis/PostgreSQL when ``REDIS_URL``/``DATABASE_URL`` is configured so state
+    survives instance restarts on ephemeral hosts (e.g. Vercel functions).
+    """
+
+    def __init__(self, store: AgentStore | None = None) -> None:
+        store = store or create_store_from_env()
+        self._agents: MutableMapping[str, Agent] = StoredMapping(store, "agents", Agent)
+        self._runs: MutableMapping[str, AgentRun] = StoredMapping(store, "runs", AgentRun)
         self._tools = {t.function.name: t for t in _MOCK_TOOLS}
 
     # ---- models ---------------------------------------------------------
@@ -155,16 +164,17 @@ class MockBackend(Backend):
     # ---- embeddings -----------------------------------------------------
 
     def embed(self, model: str, inputs: list[str]) -> EmbeddingResponse:
-        data = [
-            Embedding(index=i, embedding=_embed(text))
-            for i, text in enumerate(inputs)
-        ]
+        data = [Embedding(index=i, embedding=_embed(text)) for i, text in enumerate(inputs)]
         total = sum(_token_count([Message(role="user", content=t)]) for t in inputs)
-        return EmbeddingResponse(model=model, data=data, usage=Usage(prompt_tokens=total, total_tokens=total))
+        return EmbeddingResponse(
+            model=model, data=data, usage=Usage(prompt_tokens=total, total_tokens=total)
+        )
 
     # ---- rerank ---------------------------------------------------------
 
-    def rerank(self, model: str, query: str, documents: list[str], top_n: int | None) -> RerankResponse:
+    def rerank(
+        self, model: str, query: str, documents: list[str], top_n: int | None
+    ) -> RerankResponse:
         scored = [
             RerankResult(index=i, document=doc, relevance_score=_rerank_score(query, doc))
             for i, doc in enumerate(documents)
@@ -182,7 +192,9 @@ class MockBackend(Backend):
     def invoke_tool(self, name: str, arguments: dict[str, Any]) -> ToolInvokeResponse:
         if name == "calculator":
             expression = str(arguments.get("expression", ""))
-            return ToolInvokeResponse(name=name, result={"expression": expression, "value": _safe_eval(expression)})
+            return ToolInvokeResponse(
+                name=name, result={"expression": expression, "value": _safe_eval(expression)}
+            )
         if name == "current_time":
             return ToolInvokeResponse(name=name, result={"utc": _utc_now()})
         if name == "web_search":
@@ -221,7 +233,9 @@ class MockBackend(Backend):
 
     def run_agent(self, agent_id: str, message: str) -> AgentRun:
         agent = self.get_agent(agent_id)
-        system = Message(role="system", content=agent.instructions or "You are a helpful assistant.")
+        system = Message(
+            role="system", content=agent.instructions or "You are a helpful assistant."
+        )
         user = Message(role="user", content=message)
         assistant = Message(role="assistant", content=_mock_reply(message))
         run = AgentRun(
@@ -239,13 +253,28 @@ class MockBackend(Backend):
     async def run_agent_stream(self, agent_id: str, message: str) -> AsyncIterator[dict[str, Any]]:
         agent = self.get_agent(agent_id)
         output = _mock_reply(message)
-        yield {
-            "event": "run.created",
-            "run": {"id": None, "agent_id": agent.id, "status": "running"},
-        }
+        run = AgentRun(
+            agent_id=agent_id,
+            status="running",
+            messages=[
+                Message(
+                    role="system", content=agent.instructions or "You are a helpful assistant."
+                ),
+                Message(role="user", content=message),
+            ],
+        )
+        self._runs[run.id] = run
+        yield {"event": "run.created", "run": run.model_dump()}
         for tok in _split_tokens(output):
             await asyncio.sleep(0.02)
             yield {"event": "run.delta", "delta": tok}
+        run.status = "completed"
+        run.output = output
+        run.messages.append(Message(role="assistant", content=output))
+        import time as _time_mod
+
+        run.updated_at = int(_time_mod.time())
+        self._runs[run.id] = run
         yield {"event": "run.completed", "output": output}
 
 
@@ -255,12 +284,50 @@ def _utc_now() -> str:
     return datetime.now(UTC).isoformat()
 
 
+_BINARY_OPS = {
+    ast.Add: operator.add,
+    ast.Sub: operator.sub,
+    ast.Mult: operator.mul,
+    ast.Div: operator.truediv,
+    ast.Pow: operator.pow,
+    ast.Mod: operator.mod,
+}
+_UNARY_OPS = {ast.UAdd: operator.pos, ast.USub: operator.neg}
+
+
 def _safe_eval(expression: str) -> float | str:
-    expr = expression.replace("^", "**")
+    if len(expression) > 200:
+        return "error: expression too long"
     try:
-        return eval(expr, {"__builtins__": {}}, {})
-    except Exception as exc:  # noqa: BLE001
+        tree = ast.parse(expression.replace("^", "**"), mode="eval")
+        value = _eval_node(tree.body, depth=0)
+        if not math.isfinite(float(value)) or abs(value) > 1_000_000_000:
+            return "error: result out of bounds"
+        return value
+    except (ArithmeticError, SyntaxError, ValueError, TypeError) as exc:
         return f"error: {exc}"
+
+
+def _eval_node(node: ast.AST, depth: int) -> int | float:
+    if depth > 20:
+        raise ValueError("expression too deep")
+    if (
+        isinstance(node, ast.Constant)
+        and isinstance(node.value, (int, float))
+        and not isinstance(node.value, bool)
+    ):
+        if abs(node.value) > 1_000_000:
+            raise ValueError("number out of bounds")
+        return node.value
+    if isinstance(node, ast.UnaryOp) and type(node.op) in _UNARY_OPS:
+        return _UNARY_OPS[type(node.op)](_eval_node(node.operand, depth + 1))
+    if isinstance(node, ast.BinOp) and type(node.op) in _BINARY_OPS:
+        left = _eval_node(node.left, depth + 1)
+        right = _eval_node(node.right, depth + 1)
+        if isinstance(node.op, ast.Pow) and abs(right) > 12:
+            raise ValueError("exponent out of bounds")
+        return _BINARY_OPS[type(node.op)](left, right)
+    raise ValueError("unsupported expression")
 
 
 def _token_count(messages: list[Message]) -> int:
@@ -298,7 +365,7 @@ def _rerank_score(query: str, doc: str) -> float:
     overlap = len(q_tokens & d_tokens) / math.sqrt(len(q_tokens) * len(d_tokens))
     ngram_bonus = 0.0
     for n in (2, 3):
-        q_ngrams = {doc[i : i + n] for i in range(len(query) - n + 1)}
+        q_ngrams = {query[i : i + n] for i in range(len(query) - n + 1)}
         d_ngrams = {doc[i : i + n] for i in range(len(doc) - n + 1)}
         if q_ngrams:
             ngram_bonus += len(q_ngrams & d_ngrams) / len(q_ngrams)

@@ -51,15 +51,23 @@ def run_smoke(torch_module: Any) -> dict[str, Any]:
 
     device = "cuda"
     config = BaseModelConfig(
-        model=ModelConfig(vocab_size=64, hidden_size=32, num_layers=1, num_heads=2, max_position_embeddings=16),
+        model=ModelConfig(
+            vocab_size=64, hidden_size=32, num_layers=1, num_heads=2, max_position_embeddings=16
+        ),
         training=TrainingConfig(batch_size=2, max_steps=1, mixed_precision="bf16"),
         data=type("DataConfig", (), {"tokenizer_path": "", "train": "", "validation": ""})(),
     )
     tokens = torch_module.randint(0, 64, (8, 16), device="cpu")
     dataset = CausalLMDataset(tokens)
     with tempfile.TemporaryDirectory(prefix="kothagpt-gpu-smoke-") as directory:
-        result = train(KothaGPT(config.model), config, dataset, None, out_dir=Path(directory), device=device)
-    return {"device": device, "step": result["step"], "tokens_per_sec": result.get("tokens_per_sec")}
+        result = train(
+            KothaGPT(config.model), config, dataset, None, out_dir=Path(directory), device=device
+        )
+    return {
+        "device": device,
+        "step": result["step"],
+        "tokens_per_sec": result.get("tokens_per_sec"),
+    }
 
 
 def main(argv: list[str] | None = None) -> int:

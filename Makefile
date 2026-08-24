@@ -292,7 +292,7 @@ sbom-check: | $(VENV)
 	@echo "SBOM: python: uv.lock, go: go.mod, rust: Cargo.lock, node: pnpm-lock.yaml — OK"
 
 eval-security: | $(VENV)
-	$(PYTHON) -m pytest tests/test_security_injection.py tests/test_tool_authz.py tests/test_secrets.py -q
+	$(PYTHON) -m pytest tests/test_security_injection.py tests/test_tool_authz.py tests/test_secrets.py tests/test_pii_guard.py tests/test_audit.py -q
 
 redteam-drill: | $(VENV)
 	@echo "red-team drill: 3 injection blocked, 5 tool authz denied — OK"

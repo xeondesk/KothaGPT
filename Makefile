@@ -193,6 +193,10 @@ batch-smoke: | $(VENV)
 	$(PYTHON) -m pytest tests/test_batcher.py -q
 	$(PYTHON) -c "from ml.inference.batcher import Batcher; print('batcher ok')"
 
+loader-smoke: | $(VENV)
+	$(PYTHON) -m pytest tests/test_model_loader.py -q
+	$(PYTHON) -c "from ml.inference.loader import load_model; m,tok,rec=load_model('kothagpt'); print(f'loader {rec.id} ctx={rec.context_window} ok')"
+
 scale-smoke: | $(VENV)
 	$(PYTHON) -m ml.pretrain.scale --config ml/configs/long.yaml --tokenizer ml/tokenizer/artifacts/best --max-steps 2
 

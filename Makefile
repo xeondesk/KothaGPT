@@ -178,6 +178,13 @@ rag-store-smoke: | $(VENV)
 inference-smoke: | $(VENV)
 	$(PYTHON) -c "from ml.inference.engine import KothaGPTEngine; e=KothaGPTEngine('ml/configs/sft.yaml','ml/tokenizer/artifacts/best'); print(list(e.generate('হ্যালো', max_new_tokens=3)))"
 
+scale-smoke: | $(VENV)
+	$(PYTHON) -m ml.pretrain.scale --config ml/configs/long.yaml --tokenizer ml/tokenizer/artifacts/best --max-steps 2
+
+eval-sft-vs-base: | $(VENV)
+	$(PYTHON) -m evals.sft_vs_base --records tests/fixtures/instruction.jsonl --base tests/fixtures/instruction.predictions.json --sft tests/fixtures/instruction.predictions.json --out evals/results/sft_vs_base.json
+	cat evals/results/sft_vs_base.json
+
 # Auto review & verify the implementation plans in docs/ (structure + links).
 plans-check: | $(VENV)
 	$(PYTHON) scripts/check_plans.py

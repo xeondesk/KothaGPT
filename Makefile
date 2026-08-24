@@ -185,6 +185,10 @@ quant-smoke: | $(VENV)
 	$(PYTHON) -m pytest tests/test_quantization.py -q
 	$(PYTHON) -c "from ml.inference.quant import quantize_model; from ml.models import KothaGPT; from ml.models.config import ModelConfig; m=KothaGPT(ModelConfig(vocab_size=698, hidden_size=32, num_layers=1, num_heads=4, max_position_embeddings=64)); quantize_model(m, bits=8); print('quant 8-bit ok')"
 
+kv-smoke: | $(VENV)
+	$(PYTHON) -m pytest tests/test_kv_cache.py -q
+	$(PYTHON) -c "from ml.inference.kv_cache import KVCache; import torch; c=KVCache(2); c.update(0, torch.randn(1,2,2,4), torch.randn(1,2,2,4)); print('kv seq', c.seq_len(0))"
+
 scale-smoke: | $(VENV)
 	$(PYTHON) -m ml.pretrain.scale --config ml/configs/long.yaml --tokenizer ml/tokenizer/artifacts/best --max-steps 2
 

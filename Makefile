@@ -197,6 +197,10 @@ loader-smoke: | $(VENV)
 	$(PYTHON) -m pytest tests/test_model_loader.py -q
 	$(PYTHON) -c "from ml.inference.loader import load_model; m,tok,rec=load_model('kothagpt'); print(f'loader {rec.id} ctx={rec.context_window} ok')"
 
+version-smoke: | $(VENV)
+	$(PYTHON) -m pytest tests/test_version.py -q
+	$(PYTHON) -c "from ml.inference.version import VersionManager; vm=VersionManager(); vm.register_version('kothagpt','a'); print('version ok')"
+
 scale-smoke: | $(VENV)
 	$(PYTHON) -m ml.pretrain.scale --config ml/configs/long.yaml --tokenizer ml/tokenizer/artifacts/best --max-steps 2
 

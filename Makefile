@@ -149,11 +149,34 @@ sft-smoke: | $(VENV)
 		--config ml/configs/smoke.yaml \
 		--device cpu --max-steps 1 --out ml/sft/artifacts/smoke
 
+# WS-3..WS-6: variant-aware SFT training via ml/sft (bn/en/multilingual/code)
+sft-train: | $(VENV)
+	$(eval _SFT_CFG := $(if $(wildcard ml/configs/sft-$(variant).yaml),ml/configs/sft-$(variant).yaml,ml/configs/sft.yaml))
+	$(PYTHON) -m ml.sft.cli --train tests/fixtures/instruction.jsonl --tokenizer ml/tokenizer/artifacts/best --config $(_SFT_CFG) --max-steps 20 --out ml/sft/artifacts/$(or $(variant),run) $(if $(base),--base $(base))
+
 sft-eval: | $(VENV)
 	$(PYTHON) -m evals.sft \
 		--records tests/fixtures/instruction.jsonl \
 		--predictions tests/fixtures/instruction.predictions.json \
 		--out evals/results/sft
+
+eval-sft: sft-eval
+
+# Preference alignment smoke (WS-1/3)
+preference-smoke: | $(VENV)
+	@echo '{"prompt":"hi","chosen":"good","rejected":"bad"}' > /tmp/pref.jsonl
+	@echo '{"prompt":"hello","chosen":"yes","rejected":"no"}' >> /tmp/pref.jsonl
+	$(PYTHON) -m ml.preference.cli --train /tmp/pref.jsonl --tokenizer ml/tokenizer/artifacts/best/tokenizer.json --config ml/configs/sft.yaml --max-steps 2 --out ml/preference/artifacts/smoke
+	@echo "preference smoke ok" && cat ml/preference/artifacts/smoke/metrics.json
+
+rag-ingest-smoke: | $(VENV)
+	$(PYTHON) -c "from services.rag.ingest import IngestPipeline; p=IngestPipeline(); r=p.ingest_text('Bangla test হ্যালো বিশ্ব', source='smoke'); print(r); print(p.retriever.search('Bangla', top_k=1))"
+
+rag-store-smoke: | $(VENV)
+	$(PYTHON) -c "from services.rag.store import VectorStore; from services.rag.chunk import chunk_text; vs=VectorStore(); vs.upsert(chunk_text('hello world', document_id='d1', source='s')); print(vs.search('hello', top_k=1)); vs.snapshot('/tmp/rag-snap.json'); print('snapshot ok')"
+
+inference-smoke: | $(VENV)
+	$(PYTHON) -c "from ml.inference.engine import KothaGPTEngine; e=KothaGPTEngine('ml/configs/sft.yaml','ml/tokenizer/artifacts/best'); print(list(e.generate('হ্যালো', max_new_tokens=3)))"
 
 # Auto review & verify the implementation plans in docs/ (structure + links).
 plans-check: | $(VENV)

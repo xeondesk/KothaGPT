@@ -181,6 +181,10 @@ rag-store-smoke: | $(VENV)
 inference-smoke: | $(VENV)
 	$(PYTHON) -c "from ml.inference.engine import KothaGPTEngine; e=KothaGPTEngine('ml/configs/sft.yaml','ml/tokenizer/artifacts/best'); print(list(e.generate('হ্যালো', max_new_tokens=3)))"
 
+quant-smoke: | $(VENV)
+	$(PYTHON) -m pytest tests/test_quantization.py -q
+	$(PYTHON) -c "from ml.inference.quant import quantize_model; from ml.models import KothaGPT; from ml.models.config import ModelConfig; m=KothaGPT(ModelConfig(vocab_size=698, hidden_size=32, num_layers=1, num_heads=4, max_position_embeddings=64)); quantize_model(m, bits=8); print('quant 8-bit ok')"
+
 scale-smoke: | $(VENV)
 	$(PYTHON) -m ml.pretrain.scale --config ml/configs/long.yaml --tokenizer ml/tokenizer/artifacts/best --max-steps 2
 

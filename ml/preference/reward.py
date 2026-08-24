@@ -32,7 +32,17 @@ class RewardModel(nn.Module):
         return self.head(h).squeeze(-1)  # [B]
 
     def score_pair(self, tokenizer, prompt: str, completion: str, device: str = "cpu") -> float:
+        # Ensure tensor is on the same device as the reward model (covers self.base + self.head)
+        try:
+            model_device = next(self.parameters()).device
+        except StopIteration:
+            model_device = torch.device(device)
+        else:
+            # Move entire model if requested device differs
+            if str(model_device) != device:
+                self.to(device)
+                model_device = torch.device(device)
         ids = tokenizer.encode(prompt + completion)[:512]
-        inp = torch.tensor([ids], device=device)
+        inp = torch.tensor([ids], device=model_device)
         with torch.no_grad():
             return float(self.forward(inp).item())

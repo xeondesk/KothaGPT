@@ -69,7 +69,9 @@ class IngestPipeline:
     def ingest_file(self, path: str | Path, *, license: str | None = None) -> DocumentRecord:
         p = Path(path)
         text = p.read_text(encoding="utf-8", errors="ignore")
-        return self.ingest_text(text, source=str(p), document_id=p.stem, license=license)
+        # Use digest-derived ID (via ingest_text) or full-path hash to avoid collisions on basename
+        doc_id = hashlib.sha256(str(p.resolve()).encode()).hexdigest()[:16]
+        return self.ingest_text(text, source=str(p), document_id=f"doc_{doc_id}", license=license)
 
     def ingest_path(self, path: str | Path, *, pattern: str = "**/*", license: str | None = None) -> list[DocumentRecord]:
         p = Path(path)

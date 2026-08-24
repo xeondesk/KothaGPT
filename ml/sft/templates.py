@@ -46,30 +46,36 @@ class ChatTemplate:
         return self.joiner.join(parts) + self.joiner + "<assistant>\n"
 
     def parse(self, text: str) -> list[dict[str, str]]:
-        # Remove trailing assistant prefix added by apply
+        # Remove trailing assistant prefix added by apply (exactly one joiner + delimiter)
         if text.endswith("<assistant>\n"):
             text = text[: -len("<assistant>\n")]
-        # Split by known prefixes
+            # Also remove the joiner that preceded it if present
+            if text.endswith("\n"):
+                text = text[:-1]
         import re
 
         pattern = r"(<system>\n|<user>\n|<assistant>\n|<tool>\n)"
         tokens = re.split(pattern, text)
         messages: list[dict[str, str]] = []
-        # tokens includes delimiters
         i = 1
         while i < len(tokens):
             prefix = tokens[i].strip()
-            content = tokens[i + 1] if i + 1 < len(tokens) else ""
-            # Remove trailing joiner between messages
-            if content.endswith("\n"):
-                # need to handle joiner logic: apply joins with \n, so content may include next prefix's preceding \n
+            raw_content = tokens[i + 1] if i + 1 < len(tokens) else ""
+            # Preserve message newlines exactly; remove only the delimiter joiner
+            # Apply used joiner "\n" between parts; raw_content may end with that joiner
+            content = raw_content
+            if content.endswith("\n") and i + 2 < len(tokens):
+                # Next token is a delimiter, so trailing \n is the joiner
+                content = content[:-1]
+            elif content.endswith("\n") and i + 2 >= len(tokens):
+                # Last message, trailing \n is the joiner before final <assistant>\n (already stripped)
+                # Keep as is if message itself ends with newline, but we already stripped final assistant
+                # For last message, if it ends with \n, that \n was part of joiner before next delimiter (now removed)
+                # So we should not strip further; keep content as is except the one joiner already handled
                 pass
-            # Content is up to next delimiter; strip leading/trailing \n that are joiners
-            # The apply does joiner.join(parts) so each part is separate; we split correctly above
-            content = content.rstrip("\n")
-            # Remove leading \n if present (from joiner)
-            if content.startswith("\n"):
-                content = content[1:]
+            # No blanket stripping; keep leading newlines as they are part of content unless they are joiner artifacts
+            # Use unambiguous boundary: if content starts with \n but original message didn't, it would be joiner remnant
+            # Since apply never adds leading \n to content, we keep content as is
             role = prefix.strip()[1:-1]  # <user> -> user
             messages.append({"role": role, "content": content})
             i += 2
@@ -103,14 +109,15 @@ def parse_chat_template(text: str, template: str = "default") -> list[dict[str, 
 
 def check_tokenizer_coverage(tokenizer, template: str = "default") -> dict[str, bool]:
     """Verify tokenizer covers all chat special tokens. Returns {token: covered}."""
-    # tokenizer may be HF tokenizer or custom with vocab dict
     vocab = getattr(tokenizer, "vocab", None) or getattr(tokenizer, "get_vocab", lambda: {})()
     if callable(vocab):
         try:
             vocab = vocab()
         except Exception:
             vocab = {}
-    # Also try encode check
+    unk_id = None
+    if isinstance(vocab, dict):
+        unk_id = vocab.get("<unk>")
     coverage: dict[str, bool] = {}
     for tok in _REQUIRED_TOKENS:
         covered = False
@@ -119,8 +126,13 @@ def check_tokenizer_coverage(tokenizer, template: str = "default") -> dict[str, 
         else:
             try:
                 ids = tokenizer.encode(tok)
-                # If tokenizer splits special token, it would be multiple ids; we check that it doesn't split into unk
-                covered = len(ids) > 0
+                # Require exact vocab entry or single non-unk id
+                if len(ids) == 1 and (unk_id is None or ids[0] != unk_id):
+                    covered = True
+                elif len(ids) == 1 and tok in (getattr(tokenizer, "vocab", {}) or {}):
+                    covered = True
+                else:
+                    covered = False
             except Exception:
                 covered = False
         coverage[tok] = covered

@@ -46,17 +46,27 @@ class VectorStore:
         norm = math.sqrt(sum(v*v for v in vec)) or 1.0
         return [round(v/norm, 6) for v in vec]
 
+    def _stable_id(self, chunk_id: str) -> int:
+        import hashlib
+
+        # Deterministic 63-bit ID from sha256, not Python hash()
+        return int(hashlib.sha256(chunk_id.encode()).hexdigest()[:16], 16) % (2**63)
+
     def upsert(self, chunks: Iterable[Chunk]) -> int:
+        # Deduplicate by chunk_id in memory
+        by_id: dict[str, StoredChunk] = {sc.chunk.chunk_id: sc for sc in self._mem}
         vecs = []
         for c in chunks:
             v = self._embed(c.content)
             sc = StoredChunk(c, v)
-            self._mem.append(sc)
-            vecs.append((c.chunk_id, v, {"document_id": c.document_id, "source": c.source}))
+            by_id[c.chunk_id] = sc
+            vecs.append((c.chunk_id, v, {"chunk_id": c.chunk_id, "document_id": c.document_id, "source": c.source, "content": c.content, "index": c.index, "section": c.section or "", "start": c.start, "end": c.end}))
+        self._mem = list(by_id.values())
         if self._client:
             try:
                 from qdrant_client.models import PointStruct
-                points = [PointStruct(id=hash(cid) % (2**63), vector=vec, payload=pay) for cid, vec, pay in vecs]
+
+                points = [PointStruct(id=self._stable_id(cid), vector=vec, payload=pay) for cid, vec, pay in vecs]
                 self._client.upsert(collection_name=self.collection, points=points)
             except Exception:
                 pass
@@ -64,41 +74,77 @@ class VectorStore:
 
     def search(self, query: str, top_k: int = 5) -> list[tuple[Chunk, float]]:
         qvec = self._embed(query)
-        # In-memory cosine
         results: list[tuple[Chunk, float]] = []
         for sc in self._mem:
-            # cosine is dot since normalized
-            score = sum(a*b for a,b in zip(qvec, sc.vector))
+            score = sum(a * b for a, b in zip(qvec, sc.vector))
             results.append((sc.chunk, score))
         results.sort(key=lambda x: -x[1])
         if self._client and len(results) < top_k:
             try:
                 hits = self._client.search(collection_name=self.collection, query_vector=qvec, limit=top_k)
-                # merge (dedup)
                 seen = {r[0].chunk_id for r in results}
                 for h in hits:
-                    # reconstruct chunk from payload (minimal)
                     payload = h.payload or {}
-                    if payload.get("document_id") not in seen:
-                        # fallback to mem or dummy
-                        pass
+                    cid = payload.get("chunk_id")
+                    if cid and cid in seen:
+                        continue
+                    # Reconstruct Chunk from payload
+                    try:
+                        chunk = Chunk(
+                            chunk_id=payload.get("chunk_id", str(h.id)),
+                            document_id=payload.get("document_id", ""),
+                            content=payload.get("content", ""),
+                            index=int(payload.get("index", 0)),
+                            source=payload.get("source", ""),
+                            section=payload.get("section") or None,
+                            start=int(payload.get("start", 0)),
+                            end=int(payload.get("end", 0)),
+                        )
+                    except Exception:
+                        continue
+                    seen.add(chunk.chunk_id)
+                    results.append((chunk, float(getattr(h, "score", 0.0))))
+                results.sort(key=lambda x: -x[1])
             except Exception:
                 pass
         return results[:top_k]
 
     def snapshot(self, path: str) -> str:
         import json, pathlib
+
         p = pathlib.Path(path)
         p.parent.mkdir(parents=True, exist_ok=True)
-        data = [{"chunk_id": sc.chunk.chunk_id, "document_id": sc.chunk.document_id, "content": sc.chunk.content, "source": sc.chunk.source} for sc in self._mem]
+        data = [
+            {
+                "chunk_id": sc.chunk.chunk_id,
+                "document_id": sc.chunk.document_id,
+                "content": sc.chunk.content,
+                "index": sc.chunk.index,
+                "source": sc.chunk.source,
+                "section": sc.chunk.section,
+                "start": sc.chunk.start,
+                "end": sc.chunk.end,
+            }
+            for sc in self._mem
+        ]
         p.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
         return str(p)
 
     def restore(self, path: str) -> int:
         import json, pathlib
+
         data = json.loads(pathlib.Path(path).read_text(encoding="utf-8"))
         self._mem.clear()
         for d in data:
-            c = Chunk(d["chunk_id"], d["document_id"], d["content"], 0, d["source"])
+            c = Chunk(
+                chunk_id=d["chunk_id"],
+                document_id=d["document_id"],
+                content=d["content"],
+                index=int(d.get("index", 0)),
+                source=d.get("source", ""),
+                section=d.get("section"),
+                start=int(d.get("start", 0)),
+                end=int(d.get("end", 0)),
+            )
             self._mem.append(StoredChunk(c, self._embed(c.content)))
         return len(self._mem)

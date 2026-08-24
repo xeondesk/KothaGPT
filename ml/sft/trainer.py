@@ -33,26 +33,47 @@ def run_sft_trainer(
         shuffle=False,
         collate_fn=InstructionCollator(pad_id, max_length),
     )
+
+    # Filter dataset to ensure every retained record has completion tokens within max_length
+    # (SFTDataset already raises for prompt-only, but collator could still produce all -100 if truncated)
+    def _has_completion(batch) -> bool:
+        labs = batch["labels"]
+        return (labs != -100).any().item()
+
     model.to(device).train()
     optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
     steps, total = 0, 0.0
     initial_loss = None
+    last_loss: float | None = None
     while steps < max_steps:
         progressed = False
         for batch in loader:
+            if not _has_completion(batch):
+                continue
             progressed = True
             optimizer.zero_grad(set_to_none=True)
-            outputs = model(input_ids=batch["input_ids"].to(device), labels=batch["labels"].to(device))
+            outputs = model(
+                input_ids=batch["input_ids"].to(device), labels=batch["labels"].to(device)
+            )
             loss = outputs["loss"]
+            if torch.isnan(loss) or torch.isinf(loss):
+                raise ValueError(f"non-finite loss at step {steps}: {loss.item()}")
             if initial_loss is None:
                 initial_loss = float(loss.detach())
+            last_loss = float(loss.detach())
             loss.backward()
             optimizer.step()
-            total += float(loss.detach())
+            total += last_loss
             steps += 1
             if steps >= max_steps:
                 break
         if not progressed:
             break
     avg_loss = total / max(steps, 1)
-    return {"steps": steps, "loss": avg_loss, "initial_loss": initial_loss, "final_loss": avg_loss}
+    return {
+        "steps": steps,
+        "loss": avg_loss,
+        "initial_loss": initial_loss,
+        "final_loss": last_loss if last_loss is not None else avg_loss,
+        "mean_loss": avg_loss,
+    }

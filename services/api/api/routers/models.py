@@ -20,7 +20,7 @@ def list_models() -> ModelList:
 
             regs = get_registry().list_models()
             if regs:
-                return ModelList(data=[APIModel(id=r.id, description=r.name, context_window=8192) for r in regs])
+                return ModelList(data=[APIModel(id=r.id, description=r.name, context_window=r.context_window) for r in regs])
         except Exception:
             pass
     backend = backend_factory.create()

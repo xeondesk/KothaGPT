@@ -152,7 +152,10 @@ sft-smoke: | $(VENV)
 # WS-3..WS-6: variant-aware SFT training via ml/sft (bn/en/multilingual/code)
 sft-train: | $(VENV)
 	$(eval _SFT_CFG := $(if $(wildcard ml/configs/sft-$(variant).yaml),ml/configs/sft-$(variant).yaml,ml/configs/sft.yaml))
-	$(PYTHON) -m ml.sft.cli --train tests/fixtures/instruction.jsonl --tokenizer ml/tokenizer/artifacts/best --config $(_SFT_CFG) --max-steps 20 --out ml/sft/artifacts/$(or $(variant),run) $(if $(base),--base $(base))
+	$(eval _TRAIN_DATA := $(or $(train_data),$(TRAIN_DATA),tests/fixtures/instruction.jsonl))
+	@test -f $(_TRAIN_DATA) || { echo "train data not found: $(_TRAIN_DATA)"; exit 1; }
+	$(PYTHON) -c "from ml.instruction.dataset import load_jsonl; recs=load_jsonl('$(_TRAIN_DATA)'); assert recs, 'no records'; print(f'sft-train: {len(recs)} records from $(_TRAIN_DATA)')"
+	$(PYTHON) -m ml.sft.cli --train $(_TRAIN_DATA) --tokenizer ml/tokenizer/artifacts/best --config $(_SFT_CFG) --max-steps 20 --out ml/sft/artifacts/$(or $(variant),run) $(if $(base),--base $(base))
 
 sft-eval: | $(VENV)
 	$(PYTHON) -m evals.sft \

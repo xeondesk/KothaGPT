@@ -33,13 +33,28 @@ def main() -> None:
     tokenizer = load_tokenizer(tok_path)
     records = load_jsonl(args.train)
     model = KothaGPT(config.model)
-    if args.base and Path(args.base).is_file():
+    if args.base:
+        base_path = Path(args.base)
+        if not base_path.exists():
+            raise SystemExit(f"base checkpoint not found: {args.base}")
+        import torch
+
         try:
-            import torch
-            state = torch.load(args.base, map_location="cpu")
-            model.load_state_dict(state.get("model", state), strict=False)
+            state = torch.load(base_path, map_location="cpu", weights_only=True)
         except Exception as e:
-            print(f"warn: could not load base {args.base}: {e}")
+            raise SystemExit(f"failed to load base checkpoint {args.base}: {e}") from e
+        # Trainer saves {"model_state": ...}, not "model"
+        if isinstance(state, dict) and "model_state" in state:
+            model_state = state["model_state"]
+        elif isinstance(state, dict) and all(isinstance(k, str) for k in state.keys()):
+            # Assume direct state dict (weights-only)
+            model_state = state
+        else:
+            raise SystemExit(f"base checkpoint {args.base} has no model_state")
+        try:
+            model.load_state_dict(model_state, strict=True)
+        except Exception as e:
+            raise SystemExit(f"incompatible base checkpoint {args.base}: {e}") from e
 
     metrics = run_sft_trainer(
         model,

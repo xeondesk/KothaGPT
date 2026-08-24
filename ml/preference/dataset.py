@@ -23,10 +23,20 @@ class PreferenceRecord:
         for k in ("prompt", "chosen", "rejected"):
             if not isinstance(raw.get(k), str) or not raw[k].strip():
                 raise ValueError(f"{k} must be non-empty string")
+        chosen_n = raw["chosen"].strip()
+        rejected_n = raw["rejected"].strip()
+        # Normalize for comparison (casefold + whitespace collapse)
+        import re
+
+        def _norm(s: str) -> str:
+            return re.sub(r"\s+", " ", s.strip().casefold())
+
+        if _norm(chosen_n) == _norm(rejected_n):
+            raise ValueError("chosen and rejected must differ (normalized)")
         source = raw.get("source", "synthetic")
         if source not in _ALLOWED_SOURCES:
             raise ValueError(f"source {source!r} not in {sorted(_ALLOWED_SOURCES)}")
-        return cls(raw["prompt"].strip(), raw["chosen"].strip(), raw["rejected"].strip(), source, raw.get("task_type", "instruction"))
+        return cls(raw["prompt"].strip(), chosen_n, rejected_n, source, raw.get("task_type", "instruction"))
 
 def load_preference_jsonl(path: str | Path) -> list[PreferenceRecord]:
     recs = []

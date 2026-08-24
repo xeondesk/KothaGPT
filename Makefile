@@ -189,6 +189,10 @@ kv-smoke: | $(VENV)
 	$(PYTHON) -m pytest tests/test_kv_cache.py -q
 	$(PYTHON) -c "from ml.inference.kv_cache import KVCache; import torch; c=KVCache(2); c.update(0, torch.randn(1,2,2,4), torch.randn(1,2,2,4)); print('kv seq', c.seq_len(0))"
 
+batch-smoke: | $(VENV)
+	$(PYTHON) -m pytest tests/test_batcher.py -q
+	$(PYTHON) -c "from ml.inference.batcher import Batcher; print('batcher ok')"
+
 scale-smoke: | $(VENV)
 	$(PYTHON) -m ml.pretrain.scale --config ml/configs/long.yaml --tokenizer ml/tokenizer/artifacts/best --max-steps 2
 

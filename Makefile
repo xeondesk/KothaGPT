@@ -296,3 +296,7 @@ eval-security: | $(VENV)
 
 redteam-drill: | $(VENV)
 	@echo "red-team drill: 3 injection blocked, 5 tool authz denied — OK"
+
+rate-limit-smoke: | $(VENV)
+	$(PYTHON) -m pytest tests/test_rate_limit.py -q
+	$(PYTHON) -c "from services.api.rate_limit import limiter; print(limiter.is_allowed('test'))"

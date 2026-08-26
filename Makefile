@@ -289,7 +289,7 @@ encrypt-inventory: | $(VENV)
 	@echo "TLS: api:443, storage: SSE-S3, db: at-rest pgcrypto — inventory OK"
 
 sbom-check: | $(VENV)
-	@echo "SBOM: python: uv.lock, go: go.mod, rust: Cargo.lock, node: pnpm-lock.yaml — OK"
+	$(PYTHON) scripts/sbom.py
 
 eval-security: | $(VENV)
 	$(PYTHON) -m pytest tests/test_security_injection.py tests/test_tool_authz.py tests/test_secrets.py tests/test_pii_guard.py tests/test_audit.py -q

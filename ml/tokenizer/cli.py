@@ -16,7 +16,7 @@ import json
 import sys
 from pathlib import Path
 
-from ml.tokenizer import load_tokenizer, train_bpe, train_unigram
+from ml.tokenizer import load_tokenizer, train_bpe, train_unigram, train_wordpiece
 from ml.tokenizer.benchmark import GATE_THRESHOLDS, SAMPLE_TEXTS, check_benchmark, run_benchmark
 from ml.tokenizer.corpus import iter_corpus, load_corpus
 from ml.tokenizer.transliterate import latin_to_bangla
@@ -34,7 +34,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
     train_p = sub.add_parser("train", help="Train a single tokenizer.")
     train_p.add_argument("--corpus", required=True, help="corpus dir or file")
-    train_p.add_argument("--algorithm", choices=("bpe", "unigram"), default="bpe")
+    train_p.add_argument("--algorithm", choices=("bpe", "unigram", "wordpiece"), default="bpe")
     train_p.add_argument("--vocab-size", type=int, default=16000)
     train_p.add_argument("--out", required=True, help="output artifact dir")
     train_p.add_argument("--min-frequency", type=int, default=2)
@@ -44,7 +44,7 @@ def _build_parser() -> argparse.ArgumentParser:
     exp_p = sub.add_parser("experiments", help="Run the BPE/Unigram x vocab matrix.")
     exp_p.add_argument("--corpus", required=True)
     exp_p.add_argument("--out", default="ml/tokenizer/artifacts")
-    exp_p.add_argument("--algorithms", default="bpe,unigram", help="comma-separated algorithms")
+    exp_p.add_argument("--algorithms", default="bpe,unigram,wordpiece", help="comma-separated algorithms")
     exp_p.add_argument(
         "--vocab-sizes",
         default=",".join(str(v) for v in DEFAULT_VOCAB_SIZES),
@@ -88,7 +88,7 @@ def _build_parser() -> argparse.ArgumentParser:
     freeze_p.add_argument(
         "--corpus", required=True, help="corpus dir or file (processed train shards)"
     )
-    freeze_p.add_argument("--algorithm", choices=("bpe", "unigram"), default="bpe")
+    freeze_p.add_argument("--algorithm", choices=("bpe", "unigram", "wordpiece"), default="bpe")
     freeze_p.add_argument("--vocab-size", type=int, default=16000)
     freeze_p.add_argument("--min-frequency", type=int, default=1)
     freeze_p.add_argument("--out", default="ml/tokenizer")
@@ -119,6 +119,8 @@ def _train_one(
 ):
     if algorithm == "bpe":
         return train_bpe(corpus, vocab_size, min_frequency=min_frequency, log=None)
+    if algorithm == "wordpiece":
+        return train_wordpiece(corpus, vocab_size, min_frequency=min_frequency, log=None)
     return train_unigram(
         corpus,
         vocab_size,

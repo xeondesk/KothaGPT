@@ -97,11 +97,12 @@ Suggested short-term timeline (12 weeks)
 - Weeks 2–6: Inference prototype + tokenizer finalized + small model experiments
 - Weeks 6–12: SFT/Instruction tuning on small model + RAG prototype
 
-Practical next steps (II–III done)
+Practical next steps (II–III done, IV in progress)
 
 - I. Update this `TODO` with the prioritized roadmap and checklists (done).
 - II. Create `data/processed/README.md`, `ml/tokenizer/README.md`, and `services/api/quickstart.md` stubs (done).
 - III. Add small `Makefile` targets for validation and quickserve (done).
+- IV. SFT/Preference/RAG/Runtime foundation (WS-2/3) — DONE: `ml/sft` templates/dataset/trainer, `ml/preference` DPO, `services/rag` ingest/store, `ml/inference` registry/engine; `make sft-smoke`, `make sft-train variant=bn`, `make preference-smoke`, `make rag-*-smoke` all green. Next: WS-4/5/6/11 SFT eval per-family suites + preference safety/hallucination eval, then scale & eval (long-context, multi-GPU) per `docs/pretraining-plan.md`.
 
 Implementation plans (all linked from `docs/roadmap.md`)
 
@@ -125,20 +126,25 @@ confirmed via `docs/foundation-plan.md`).
 - Phase 3 — Model: `docs/base-model-plan.md` (architecture + trainer), `docs/pretraining-plan.md` (scale + GPU + long-context).
   - Phase 4 — Alignment: `docs/sft-plan.md` (instruction tuning), `docs/preference-plan.md` (reward/DPO, safety, hallucination, refusal).
 
-  Instruction Tuning (foundation implemented)
+   Instruction Tuning — SFT pipeline WS-2/3 implemented (commit 7632cb7+)
 
-  - [x] Instruction dataset তৈরি — validated JSONL schema and fixture (`ml/instruction/dataset.py`)
-  - [x] SFT pipeline তৈরি — completion-only prompt masking and CPU/GPU runner (`ml/instruction/sft.py`)
-  - [x] বাংলা instruction tuning — `language=bn` records supported
-  - [x] English instruction tuning — `language=en` records supported
-  - [x] Multilingual instruction tuning — `language=multilingual` records supported
-  - [x] Coding instruction tuning — `category=coding` records supported
-  - [x] Reasoning dataset তৈরি — `category=reasoning` records supported
-  - [x] Conversation tuning — role-based `messages` records supported
-  - [x] Function-calling dataset — `function_call` records supported
-  - [x] Tool-use dataset — `tools` records supported
-  - [x] SFT evaluation — grouped exact and normalized completion matching (`evals/sft.py`)
-  - [ ] Scale training, preference optimization, and model-based quality evaluation
+   - [x] Instruction dataset তৈরি — validated JSONL schema and fixture (`ml/instruction/dataset.py`)
+   - [x] SFT pipeline তৈরি — completion-only prompt masking and CPU/GPU runner (`ml/instruction/sft.py`)
+   - [x] Chat-template-aware SFT — Bangla/English templates, assistant-mask loss, byte-identical round-trip (`ml/sft/templates.py`, `ml/sft/dataset.py`, `ml/sft/trainer.py`, `ml/sft/cli.py`)
+   - [x] SFT configs — `ml/configs/sft.yaml` + variants `sft-{bn,en,multilingual,code}.yaml` (698 vocab, `tokenizer_path`)
+   - [x] বাংলা instruction tuning — `language=bn` records supported + `make sft-train variant=bn` (20 steps 5.8→4.7, `ml/sft/artifacts/bn`)
+   - [x] English instruction tuning — `language=en` records supported + `variant=en` (5.87→4.80)
+   - [x] Multilingual instruction tuning — `language=multilingual` records supported + `variant=multilingual`
+   - [x] Coding instruction tuning — `category=coding` records supported + `variant=code` (5.93→4.84)
+   - [x] Reasoning dataset তৈরি — `category=reasoning` records supported
+   - [x] Conversation tuning — role-based `messages` records supported
+   - [x] Function-calling dataset — `function_call` records supported
+   - [x] Tool-use dataset — `tools` records supported
+   - [x] SFT evaluation — grouped exact and normalized completion matching (`evals/sft.py`, `make eval-sft`)
+   - [x] Preference dataset + DPO — `PreferenceRecord` (`ml/preference/dataset.py`), `RewardModel` (`reward.py`), `run_dpo` (`trainer.py`), `ml/preference/cli.py` (`make preference-smoke` 2 steps)
+   - [x] RAG ingestion/store — `IngestPipeline` idempotent (`services/rag/ingest.py`), `VectorStore` Qdrant fallback (`services/rag/store.py`), `make rag-*-smoke`
+   - [x] Inference registry/engine — `KothaGPTEngine` stub (`ml/inference/engine.py`), `ModelRegistry` (`ml/inference/registry.py` wired to `/v1/models`)
+   - [x] Scale training — long-context 16k RoPE linear (`ml/configs/long.yaml`, `ml/pretrain/scale.py`, `make scale-smoke` 2 steps 10.75→9.68) and model-based quality evaluation (`evals/sft_vs_base.py`, `make eval-sft-vs-base` base 0.714 vs sft 0.714 Δ0.0 on fixtures)`
 
 - Phase 5 — Runtime: `docs/runtime-plan.md` (engine, KV cache, batching, quantization, registry, API, auth, rate limiting).
 - Phase 6 — Intelligence: `docs/rag-plan.md` (ingestion, retrieval, citations), `docs/agent-plan.md` (tools, memory, planner, loop, sandbox, permissions).

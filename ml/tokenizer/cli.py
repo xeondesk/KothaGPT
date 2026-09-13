@@ -1,7 +1,7 @@
 """CLI for Phase 1B — Bangla tokenizer training and benchmarking.
 
 Usage:
-    python -m ml.tokenizer.cli train --corpus PATH --algorithm bpe|unigram --vocab-size N --out DIR
+    python -m ml.tokenizer.cli train --corpus PATH --algorithm bpe|unigram|wordpiece --vocab-size N --out DIR
     python -m ml.tokenizer.cli experiments --corpus PATH [--out DIR]
     python -m ml.tokenizer.cli encode --tokenizer DIR --text "..." [--transliterate] | --file PATH
     python -m ml.tokenizer.cli benchmark --tokenizer DIR --file PATH
@@ -28,7 +28,7 @@ DEFAULT_VOCAB_SIZES = (16000, 32000, 50000)
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="kothagpt-tokenizer",
-        description="Phase 1B — Bangla tokenizer (BPE / Unigram) experiments.",
+        description="Phase 1B — Bangla tokenizer (BPE / Unigram / WordPiece) experiments.",
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
@@ -41,7 +41,7 @@ def _build_parser() -> argparse.ArgumentParser:
     train_p.add_argument("--max-subword-len", type=int, default=8)
     train_p.add_argument("--iterations", type=int, default=8)
 
-    exp_p = sub.add_parser("experiments", help="Run the BPE/Unigram x vocab matrix.")
+    exp_p = sub.add_parser("experiments", help="Run the BPE/Unigram/WordPiece x vocab matrix.")
     exp_p.add_argument("--corpus", required=True)
     exp_p.add_argument("--out", default="ml/tokenizer/artifacts")
     exp_p.add_argument("--algorithms", default="bpe,unigram,wordpiece", help="comma-separated algorithms")

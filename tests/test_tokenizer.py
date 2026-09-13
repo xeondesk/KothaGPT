@@ -1,4 +1,4 @@
-"""Tests for the Phase 1B Bangla tokenizer (BPE and Unigram)."""
+"""Tests for the Phase 1B Bangla tokenizer (BPE, Unigram, and WordPiece)."""
 
 from __future__ import annotations
 

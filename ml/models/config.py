@@ -69,6 +69,7 @@ class TrainingConfig:
     trend_guard_patience: int = 0
     trend_guard_action: str = "abort"
     eval_batches: int = 20
+    keep_last: int = 5
 
     def validate(self) -> None:
         if self.batch_size <= 0:

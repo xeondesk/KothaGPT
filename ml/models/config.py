@@ -23,6 +23,9 @@ class ModelConfig:
     norm_type: str = "rmsnorm"
     architecture: str = "decoder_transformer"
 
+    def to_dict(self) -> dict:
+        return asdict(self)
+
     def effective_intermediate_size(self) -> int:
         if self.intermediate_size > 0:
             return self.intermediate_size
@@ -79,6 +82,9 @@ class TrainingConfig:
         if self.mixed_precision not in ("none", "bf16", "fp16"):
             raise ValueError(f"mixed_precision {self.mixed_precision} not supported")
 
+    def to_dict(self) -> dict:
+        return asdict(self)
+
 
 @dataclass
 class DataConfig:
@@ -92,6 +98,9 @@ class DataConfig:
         if not self.tokenizer_path:
             raise ValueError("tokenizer_path is required")
 
+    def to_dict(self) -> dict:
+        return asdict(self)
+
 
 @dataclass
 class BaseModelConfig:
@@ -103,6 +112,9 @@ class BaseModelConfig:
         self.model.validate()
         self.training.validate()
         self.data.validate()
+
+    def to_dict(self) -> dict:
+        return asdict(self)
 
 
 def config_digest(cfg: BaseModelConfig) -> str:

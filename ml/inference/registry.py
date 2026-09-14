@@ -34,13 +34,31 @@ class ModelRegistry:
         self._init_defaults()
 
     def _init_defaults(self):
-        for m in [
-            ModelRecord(id="kothagpt", name="Kotha GPT Base", version="0.2.0"),
-            ModelRecord(
-                id="kothagpt-small", name="Kotha GPT Small", version="0.2.0", device_profile="cpu"
-            ),
-            ModelRecord(id="kothagpt-embed", name="Kotha Embed", version="0.2.0"),
-            ModelRecord(id="kothagpt-rerank", name="Kotha Rerank", version="0.2.0"),
+        tiers = [
+            ModelRecord(id="kothagpt-nano", name="Kotha Nano", version="0.2.0",
+                        family="kothagpt-nano", device_profile="cpu",
+                        context_window=2048, quant_level="int8"),
+            ModelRecord(id="kothagpt-small", name="Kotha Small", version="0.2.0",
+                        family="kothagpt-small", device_profile="cpu",
+                        context_window=4096, quant_level="none"),
+            ModelRecord(id="kothagpt-medium", name="Kotha Medium", version="0.2.0",
+                        family="kothagpt-medium", device_profile="gpu",
+                        context_window=8192, quant_level="int8"),
+            ModelRecord(id="kothagpt-large", name="Kotha Large", version="0.2.0",
+                        family="kothagpt-large", device_profile="gpu",
+                        context_window=16384, quant_level="int4"),
+            ModelRecord(id="kothagpt", name="Kotha GPT Base", version="0.2.0",
+                        family="kothagpt", device_profile="cpu",
+                        context_window=4096, quant_level="none"),
+            ModelRecord(id="kothagpt-embed", name="Kotha Embed", version="0.2.0",
+                        family="kothagpt-embed", device_profile="cpu",
+                        context_window=8192),
+            ModelRecord(id="kothagpt-rerank", name="Kotha Rerank", version="0.2.0",
+                        family="kothagpt-rerank", device_profile="cpu",
+                        context_window=8192),
+            ModelRecord(id="kothagpt-moe", name="Kotha MoE Frontier", version="0.2.0",
+                        family="kothagpt-moe", device_profile="gpu",
+                        context_window=16384, quant_level="int4", status="research"),
         ]:
             self._mem[m.id] = m
 

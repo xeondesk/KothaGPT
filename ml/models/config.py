@@ -111,6 +111,12 @@ def config_digest(cfg: BaseModelConfig) -> str:
     return hashlib.sha256(json_str.encode()).hexdigest()
 
 
+def model_digest(cfg: BaseModelConfig | ModelConfig | dict) -> str:
+    d = asdict(cfg) if hasattr(cfg, "__dataclass_fields__") else dict(cfg)
+    json_str = json.dumps(d, sort_keys=True)
+    return hashlib.sha256(json_str.encode()).hexdigest()
+
+
 def load_config(path: str | Path) -> BaseModelConfig:
     from ml.tokenizer import load_tokenizer
     from ml.tokenizer.base import BaseTokenizer

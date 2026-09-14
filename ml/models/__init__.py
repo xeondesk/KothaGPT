@@ -4,6 +4,7 @@ from ml.models.config import (
     TrainingConfig,
     DataConfig,
     config_digest,
+    model_digest,
     load_config,
 )
 from ml.models.layers import (
@@ -32,6 +33,7 @@ __all__ = [
     "DataConfig",
     "BaseModelConfig",
     "config_digest",
+    "model_digest",
     "load_config",
     "ModelTier",
     "TIER_CONFIGS",

@@ -70,6 +70,11 @@ class TrainingConfig:
     trend_guard_action: str = "abort"
     eval_batches: int = 20
     keep_last: int = 5
+    weight_decay: float = 0.0
+    beta1: float = 0.9
+    beta2: float = 0.95
+    grad_clip: float = 1.0
+    shuffle: bool = True
 
     def validate(self) -> None:
         if self.batch_size <= 0:

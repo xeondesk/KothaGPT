@@ -165,4 +165,3 @@ Owner map for new plans:
 - `services/security` + `data/pipeline/security.py` → `docs/security-plan.md`
 - `packages/*` → `docs/sdk-plan.md`; product decisions → `docs/foundation-plan.md`
 - `apps/*` + `services/hub` + `services/marketplace` → `docs/ecosystem-plan.md`
-

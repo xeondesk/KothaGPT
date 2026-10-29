@@ -11,6 +11,7 @@ block bootstrapped into every vocabulary.
 
 from __future__ import annotations
 
+import heapq
 from collections import Counter
 from collections.abc import Callable
 from itertools import pairwise
@@ -46,14 +47,50 @@ def train_wordpiece(
 
     # Track how each word is segmented and compute symbol-pair frequencies.
     symbols: dict[str, tuple[str, ...]] = {w: tuple(w) for w in word_counts}
+    word_order: dict[str, int] = {w: i for i, w in enumerate(word_counts)}
     pair_counts: Counter[tuple[str, str]] = Counter()
     symbol_counts: Counter[str] = Counter()
+    pair_words: dict[tuple[str, str], set[str]] = {}
+    symbol_pairs: dict[str, set[tuple[str, str]]] = {}
+    pair_order: dict[tuple[str, str], int] = {}
+    next_pair_order = 0
+
+    def add_pair(pair: tuple[str, str], word: str, count: int) -> None:
+        nonlocal next_pair_order
+        if pair not in pair_counts:
+            pair_counts[pair] = 0
+            pair_order[pair] = next_pair_order
+            next_pair_order += 1
+            pair_words[pair] = set()
+            for symbol in pair:
+                symbol_pairs.setdefault(symbol, set()).add(pair)
+        pair_counts[pair] += count
+        pair_words[pair].add(word)
+
     for word, sym in symbols.items():
         cnt = word_counts[word]
         for s in sym:
             symbol_counts[s] += cnt
-        for a, b in pairwise(sym):
-            pair_counts[(a, b)] += cnt
+        for pair in pairwise(sym):
+            add_pair(pair, word, cnt)
+
+    def pair_score(pair: tuple[str, str]) -> float | None:
+        freq = pair_counts.get(pair, 0)
+        if freq < min_frequency:
+            return None
+        a, b = pair
+        denom = symbol_counts.get(a, 0) * symbol_counts.get(b, 0)
+        if denom == 0:
+            return None
+        return freq / denom
+
+    scores: dict[tuple[str, str], float] = {}
+    heap: list[tuple[float, int, tuple[str, str]]] = []
+    for pair in pair_counts:
+        score = pair_score(pair)
+        if score is not None:
+            scores[pair] = score
+            heapq.heappush(heap, (-score, pair_order[pair], pair))
 
     target = vocab_size - len(SPECIAL_TOKENS)
     merges: list[tuple[str, str]] = []
@@ -61,18 +98,15 @@ def train_wordpiece(
     while len(vocab) < target:
         # Pick the pair maximising freq(ab) / (freq(a) * freq(b)).
         best_pair: tuple[str, str] | None = None
-        best_score = -1.0
-        for pair, freq in pair_counts.items():
-            if freq < min_frequency:
+        while heap:
+            neg_score, order, pair = heapq.heappop(heap)
+            if pair_order.get(pair) != order:
                 continue
-            a, b = pair
-            denom = symbol_counts.get(a, 0) * symbol_counts.get(b, 0)
-            if denom == 0:
+            current = scores.get(pair)
+            if current is None or current != -neg_score:
                 continue
-            score = freq / denom
-            if score > best_score:
-                best_score = score
-                best_pair = pair
+            best_pair = pair
+            break
         if best_pair is None:
             break
 
@@ -82,8 +116,10 @@ def train_wordpiece(
         merges.append(best_pair)
 
         # Apply the merge to every word that contained this pair.
-        freq = pair_counts[best_pair]
-        for word in list(word_counts):
+        affected = sorted(pair_words.get(best_pair, ()), key=word_order.__getitem__)
+        impacted: set[tuple[str, str]] = set()
+        changed_symbols: set[str] = set()
+        for word in affected:
             sym = symbols[word]
             new_sym: list[str] = []
             i = 0
@@ -98,20 +134,50 @@ def train_wordpiece(
             new_sym_t = tuple(new_sym)
             if new_sym_t == sym:
                 continue
+            old_pairs = list(pairwise(sym))
+            new_pairs = list(pairwise(new_sym_t))
+            impacted.update(old_pairs)
+            impacted.update(new_pairs)
+            changed_symbols.update(sym)
+            changed_symbols.update(new_sym_t)
             # Update counts.
             for s in sym:
                 symbol_counts[s] -= wcnt
-            for a2, b2 in pairwise(sym):
-                pair_counts[(a2, b2)] -= wcnt
+            for pair in old_pairs:
+                pair_counts[pair] -= wcnt
+                pair_words[pair].discard(word)
             for s in new_sym_t:
                 symbol_counts[s] += wcnt
-            for a2, b2 in pairwise(new_sym_t):
-                pair_counts[(a2, b2)] += wcnt
+            for pair in new_pairs:
+                add_pair(pair, word, wcnt)
             symbols[word] = new_sym_t
 
+        for symbol in changed_symbols:
+            impacted.update(symbol_pairs.get(symbol, ()))
+
         # Clean up stale entries.
-        for key in [k for k, v in pair_counts.items() if v <= 0]:
-            del pair_counts[key]
+        for pair in impacted:
+            if pair_counts.get(pair, 0) <= 0:
+                del pair_counts[pair]
+                pair_order.pop(pair, None)
+                pair_words.pop(pair, None)
+                scores.pop(pair, None)
+                for symbol in pair:
+                    pairs = symbol_pairs.get(symbol)
+                    if pairs is not None:
+                        pairs.discard(pair)
+                        if not pairs:
+                            del symbol_pairs[symbol]
+
+        for pair in impacted:
+            if pair not in pair_counts:
+                continue
+            score = pair_score(pair)
+            if score is None:
+                scores.pop(pair, None)
+            else:
+                scores[pair] = score
+                heapq.heappush(heap, (-score, pair_order[pair], pair))
 
         if log is not None and len(merges) % 1000 == 0:
             log(f"wordpiece: {len(merges)} merges, vocab={len(vocab)}")
